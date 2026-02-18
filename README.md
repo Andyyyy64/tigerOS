@@ -59,6 +59,26 @@ Unexpected traps are logged with cause and fault context before halting:
 TRAP: unexpected mcause=0x... mepc=0x... mtval=0x...
 ```
 
+## Round-Robin Scheduler Test
+
+```sh
+make qemu-sched-test
+```
+
+The scheduler test boots the kernel, starts two runnable test tasks, and validates
+round-robin alternation on timer interrupts.
+
+Expected output includes:
+
+```text
+SCHED: policy=round-robin runnable=2
+SCHED: switch 1 -> 2
+SCHED: switch 2 -> 1
+TASK: 1 running
+TASK: 2 running
+SCHED_TEST: alternating tasks confirmed
+```
+
 ## Framebuffer Graphics Test
 
 ```sh
