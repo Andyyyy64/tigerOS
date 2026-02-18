@@ -48,12 +48,45 @@ static uint32_t hash_title(const char *title) {
   return hash;
 }
 
+static int window_has_valid_frame(const wm_window_t *window) {
+  if (window == (const wm_window_t *)0) {
+    return 0;
+  }
+
+  if (window->frame.width == 0u || window->frame.height == 0u) {
+    return 0;
+  }
+
+  return 1;
+}
+
+static int mul_u32_overflow(uint32_t a, uint32_t b, uint32_t *out) {
+  uint32_t product;
+
+  if (out == (uint32_t *)0) {
+    return 1;
+  }
+
+  if (a == 0u || b == 0u) {
+    *out = 0u;
+    return 0;
+  }
+
+  product = a * b;
+  if ((product / a) != b) {
+    return 1;
+  }
+
+  *out = product;
+  return 0;
+}
+
 static void wm_draw_window(const wm_window_t *window) {
   wm_rect_t title_bar;
   wm_rect_t content;
   uint32_t title_hash;
 
-  if (window == (const wm_window_t *)0 || window->frame.width == 0u || window->frame.height == 0u) {
+  if (!window_has_valid_frame(window)) {
     return;
   }
 
@@ -83,13 +116,18 @@ static void wm_draw_window(const wm_window_t *window) {
 }
 
 int wm_compositor_reset(uint32_t background_color) {
+  uint32_t i;
+
   g_scene.background_color = background_color;
+  for (i = 0u; i < WM_MAX_WINDOWS; ++i) {
+    g_scene.windows[i] = (const wm_window_t *)0;
+  }
   g_scene.window_count = 0u;
   return 0;
 }
 
 int wm_compositor_add_window(const wm_window_t *window) {
-  if (window == (const wm_window_t *)0) {
+  if (!window_has_valid_frame(window)) {
     return -1;
   }
 
@@ -106,6 +144,7 @@ uint32_t wm_compositor_window_count(void) { return g_scene.window_count; }
 
 uint32_t wm_compositor_render(void) {
   const struct framebuffer_info *fb;
+  uint32_t pixel_count;
   uint32_t i;
 
   fb = framebuffer_get_info();
@@ -120,5 +159,9 @@ uint32_t wm_compositor_render(void) {
     wm_draw_window(g_scene.windows[i]);
   }
 
-  return fnv1a32_pixels(fb->pixels, fb->height * fb->stride);
+  if (mul_u32_overflow(fb->height, fb->stride, &pixel_count) != 0) {
+    return 0u;
+  }
+
+  return fnv1a32_pixels(fb->pixels, pixel_count);
 }
