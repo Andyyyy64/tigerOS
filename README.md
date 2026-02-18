@@ -47,6 +47,22 @@ BOOT: kernel entry
 echo: uart line echo test
 ```
 
+## Physical Page Allocator Test
+
+```sh
+make test-page-alloc
+```
+
+Runs host-side unit tests for the 4KiB physical page allocator in `kernel/mm/page_alloc.c`.
+The test covers range alignment during init, allocation/free behavior, ownership checks, and
+invalid free handling.
+
+Expected output:
+
+```text
+page_alloc tests passed
+```
+
 ## Useful Variables
 
 - `CROSS_COMPILE` (default: `riscv64-unknown-elf-`)

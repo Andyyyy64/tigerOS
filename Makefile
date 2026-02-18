@@ -14,10 +14,14 @@ KERNEL_BIN := $(BUILD_DIR)/kernel.bin
 CFLAGS := -march=rv64imac -mabi=lp64 -mcmodel=medany -ffreestanding -fno-pic -O2 -g0 -Wall -Wextra -Werror
 ASFLAGS := $(CFLAGS)
 LDFLAGS := -nostdlib -nostartfiles -Wl,--build-id=none -Wl,-T,arch/riscv/linker.ld -Wl,-Map,$(BUILD_DIR)/kernel.map
+HOST_CC ?= cc
+HOST_CFLAGS ?= -std=c11 -O2 -g0 -Wall -Wextra -Werror
 
 SRCS_C := \
 	drivers/uart/uart.c \
 	kernel/console.c \
+	kernel/mm/init.c \
+	kernel/mm/page_alloc.c \
 	kernel/main.c \
 	shell/line_io.c \
 	kernel/gfx/framebuffer.c \
@@ -27,7 +31,13 @@ OBJS := \
 	$(patsubst %.c,$(BUILD_DIR)/%.o,$(SRCS_C)) \
 	$(patsubst %.S,$(BUILD_DIR)/%.o,$(SRCS_S))
 
-.PHONY: all clean qemu-smoke qemu-gfx-test qemu-serial-echo-test
+TEST_PAGE_ALLOC_BIN := $(BUILD_DIR)/test-page-alloc
+TEST_PAGE_ALLOC_SRCS := \
+	tests/kernel/test_main.c \
+	tests/kernel/test_page_alloc.c \
+	kernel/mm/page_alloc.c
+
+.PHONY: all clean qemu-smoke qemu-gfx-test qemu-serial-echo-test test-page-alloc
 
 all: $(KERNEL_ELF) $(KERNEL_BIN)
 
@@ -73,6 +83,13 @@ qemu-serial-echo-test: $(KERNEL_ELF)
 	printf '%s\n' "$$OUTPUT"; \
 	printf '%s\n' "$$OUTPUT" | grep -F "BOOT: kernel entry" >/dev/null; \
 	printf '%s\n' "$$OUTPUT" | grep -F "echo: $$TEST_LINE" >/dev/null
+
+$(TEST_PAGE_ALLOC_BIN): $(TEST_PAGE_ALLOC_SRCS) include/page_alloc.h
+	@mkdir -p "$(BUILD_DIR)"
+	$(HOST_CC) $(HOST_CFLAGS) -Iinclude $(TEST_PAGE_ALLOC_SRCS) -o "$@"
+
+test-page-alloc: $(TEST_PAGE_ALLOC_BIN) scripts/run_unit_tests.sh
+	./scripts/run_unit_tests.sh "$(TEST_PAGE_ALLOC_BIN)"
 
 clean:
 	rm -rf "$(BUILD_DIR)"
