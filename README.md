@@ -34,6 +34,27 @@ The smoke test runs `scripts/run_qemu.sh`, boots the kernel on QEMU `virt`, and 
 BOOT: kernel entry
 ```
 
+## Trap Handler Test
+
+```sh
+make qemu-trap-test
+```
+
+The trap test boots the kernel, triggers an `ebreak`, and verifies trap handling
+plus resume flow:
+
+```text
+BOOT: kernel entry
+TRAP_TEST: mcause=0x0000000000000003 mepc=0x...
+TRAP_TEST: resumed
+```
+
+Unexpected traps are logged with cause and fault context before halting:
+
+```text
+TRAP: unexpected mcause=0x... mepc=0x... mtval=0x...
+```
+
 ## Framebuffer Graphics Test
 
 ```sh
