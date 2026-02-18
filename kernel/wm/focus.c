@@ -2,6 +2,8 @@
 
 #include "wm_focus.h"
 
+static const wm_window_t *g_active_window;
+
 static int wm_point_in_rect(const wm_rect_t *rect, uint32_t x, uint32_t y) {
   if (rect == (const wm_rect_t *)0 || rect->width == 0u || rect->height == 0u) {
     return 0;
@@ -17,6 +19,15 @@ static int wm_point_in_rect(const wm_rect_t *rect, uint32_t x, uint32_t y) {
 
   return 1;
 }
+
+void wm_focus_reset(void) { g_active_window = (const wm_window_t *)0; }
+
+int wm_focus_set_active_window(const wm_window_t *window) {
+  g_active_window = window;
+  return 0;
+}
+
+const wm_window_t *wm_focus_active_window(void) { return g_active_window; }
 
 int wm_focus_window_contains_point(const wm_window_t *window, uint32_t x, uint32_t y) {
   if (window == (const wm_window_t *)0) {

@@ -8,7 +8,6 @@
 typedef struct wm_scene {
   uint32_t background_color;
   wm_layer_stack_t layers;
-  const wm_window_t *active_window;
 } wm_scene_t;
 
 static wm_scene_t g_scene;
@@ -104,7 +103,7 @@ static void wm_draw_window(const wm_window_t *window) {
 int wm_compositor_reset(uint32_t background_color) {
   g_scene.background_color = background_color;
   wm_layers_reset(&g_scene.layers);
-  g_scene.active_window = (const wm_window_t *)0;
+  wm_focus_reset();
   return 0;
 }
 
@@ -121,7 +120,7 @@ int wm_compositor_add_window(const wm_window_t *window) {
     return -1;
   }
 
-  g_scene.active_window = window;
+  wm_focus_set_active_window(window);
   return 0;
 }
 
@@ -140,7 +139,7 @@ int wm_compositor_activate_window(const wm_window_t *window) {
     return -1;
   }
 
-  g_scene.active_window = window;
+  wm_focus_set_active_window(window);
   return 0;
 }
 
@@ -153,7 +152,7 @@ int wm_compositor_activate_at(uint32_t x, uint32_t y) {
   return wm_compositor_activate_window(window);
 }
 
-const wm_window_t *wm_compositor_active_window(void) { return g_scene.active_window; }
+const wm_window_t *wm_compositor_active_window(void) { return wm_focus_active_window(); }
 
 uint32_t wm_compositor_render(void) {
   const struct framebuffer_info *fb;
