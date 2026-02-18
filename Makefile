@@ -7,14 +7,18 @@ OBJDUMP := $(CROSS_COMPILE)objdump
 
 QEMU ?= qemu-system-riscv64
 TIMEOUT_BIN ?= timeout
+HOST_CC ?= cc
 BUILD_DIR := build
 KERNEL_ELF := $(BUILD_DIR)/kernel.elf
 KERNEL_BIN := $(BUILD_DIR)/kernel.bin
+FS_BUILD_DIR := $(BUILD_DIR)/fs
+FS_TEST_BIN := $(FS_BUILD_DIR)/fs_rw_test
+FS_MKFS_BIN := $(FS_BUILD_DIR)/mkfs_otfs
+FS_TEST_IMAGE := $(FS_BUILD_DIR)/qemu_fs_rw.img
 
 CFLAGS := -march=rv64imac_zicsr -mabi=lp64 -mcmodel=medany -ffreestanding -fno-pic -O2 -g0 -Wall -Wextra -Werror
 ASFLAGS := $(CFLAGS)
 LDFLAGS := -nostdlib -nostartfiles -Wl,--build-id=none -Wl,-T,arch/riscv/linker.ld -Wl,-Map,$(BUILD_DIR)/kernel.map
-HOST_CC ?= cc
 HOST_CFLAGS ?= -std=c11 -O2 -g0 -Wall -Wextra -Werror
 
 SRCS_C := \
@@ -40,7 +44,7 @@ TEST_PAGE_ALLOC_SRCS := \
 	tests/kernel/test_page_alloc.c \
 	kernel/mm/page_alloc.c
 
-.PHONY: all clean qemu-smoke qemu-gfx-test qemu-serial-echo-test qemu-trap-test test-page-alloc
+.PHONY: all clean qemu-smoke qemu-gfx-test qemu-serial-echo-test qemu-trap-test qemu-fs-rw-test test-page-alloc
 
 all: $(KERNEL_ELF) $(KERNEL_BIN)
 
@@ -59,6 +63,14 @@ $(KERNEL_ELF): $(OBJS) arch/riscv/linker.ld
 
 $(KERNEL_BIN): $(KERNEL_ELF)
 	$(OBJCOPY) -O binary "$<" "$@"
+
+$(FS_TEST_BIN): fs/fs_rw_test.c fs/otfs.c include/fs.h
+	@mkdir -p "$(FS_BUILD_DIR)"
+	$(HOST_CC) $(HOST_CFLAGS) -Iinclude fs/fs_rw_test.c fs/otfs.c -o "$@"
+
+$(FS_MKFS_BIN): fs/mkfs_otfs.c fs/otfs.c include/fs.h
+	@mkdir -p "$(FS_BUILD_DIR)"
+	$(HOST_CC) $(HOST_CFLAGS) -Iinclude fs/mkfs_otfs.c fs/otfs.c -o "$@"
 
 qemu-smoke: $(KERNEL_ELF) scripts/run_qemu.sh
 	QEMU_BIN="$(QEMU)" ./scripts/run_qemu.sh "$(KERNEL_ELF)" "BOOT: kernel entry"
@@ -105,6 +117,10 @@ qemu-trap-test: $(KERNEL_ELF)
 	printf '%s\n' "$$OUTPUT" | grep -F "BOOT: kernel entry" >/dev/null; \
 	printf '%s\n' "$$OUTPUT" | grep -F "TRAP_TEST: mcause=0x0000000000000003" >/dev/null; \
 	printf '%s\n' "$$OUTPUT" | grep -F "TRAP_TEST: mepc=0x" >/dev/null
+
+qemu-fs-rw-test: $(FS_TEST_BIN) $(FS_MKFS_BIN) scripts/gen_fs_image.sh
+	./scripts/gen_fs_image.sh "$(FS_TEST_IMAGE)" "$(FS_MKFS_BIN)"
+	"$(FS_TEST_BIN)" "$(FS_TEST_IMAGE)"
 
 $(TEST_PAGE_ALLOC_BIN): $(TEST_PAGE_ALLOC_SRCS) include/page_alloc.h
 	@mkdir -p "$(BUILD_DIR)"
