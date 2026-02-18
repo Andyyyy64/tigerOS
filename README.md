@@ -258,6 +258,65 @@ page allocator unit tests passed
 all unit tests passed
 ```
 
+## Core Kernel Unit/Integration Test Suite
+
+```sh
+make test
+```
+
+Runs the host-side core test targets in sequence via `scripts/run_tests.sh`:
+
+- `test-page-alloc`
+- `test-sched-timer`
+- `test-fs-dir`
+- `test-shell`
+
+Expected output includes:
+
+```text
+==> test-page-alloc
+==> test-sched-timer
+==> test-fs-dir
+==> test-shell
+```
+
+## Scheduler/Timer Integration Unit Test
+
+```sh
+make test-sched-timer
+```
+
+Builds and runs the host-side scheduler/timer integration test (`build/test-sched-timer`) that validates:
+
+- timer interrupt tick accounting and periodic deadline reprogramming
+- delayed interrupt handling that advances the timer deadline into the future
+- deterministic round-robin alternation between the two bootstrap runnable tasks
+- scheduler/task switch accounting (`run_count`, switch-in, and switch-out counters)
+
+Expected output includes:
+
+```text
+scheduler/timer integration tests passed
+```
+
+## Shell Command Unit/Integration Test
+
+```sh
+make test-shell
+```
+
+Builds and runs the host-side shell command test binary (`build/test-shell`) that validates:
+
+- shell parser tokenization across mixed whitespace
+- basic builtins (`help`, `echo`, `meminfo`) and unknown-command handling
+- filesystem builtins (`ls`, `cat`, `pwd`, `cd`, `mkdir`) with deterministic output and error cases
+
+Expected output includes:
+
+```text
+shell command tests passed
+```
+
 ## Filesystem Mount/Read/Write Test
 
 ```sh
