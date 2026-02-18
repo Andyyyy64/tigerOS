@@ -34,6 +34,27 @@ The smoke test runs `scripts/run_qemu.sh`, boots the kernel on QEMU `virt`, and 
 BOOT: kernel entry
 ```
 
+## Trap Handler Test
+
+```sh
+make qemu-trap-test
+```
+
+The trap test boots the kernel, triggers an `ebreak`, and verifies trap handling
+plus resume flow:
+
+```text
+BOOT: kernel entry
+TRAP_TEST: mcause=0x0000000000000003 mepc=0x...
+TRAP_TEST: resumed
+```
+
+Unexpected traps are logged with cause and fault context before halting:
+
+```text
+TRAP: unexpected mcause=0x... mepc=0x... mtval=0x...
+```
+
 ## Framebuffer Graphics Test
 
 ```sh
@@ -78,6 +99,43 @@ Expected output:
 ```text
 page allocator unit tests passed
 all unit tests passed
+```
+
+## Filesystem Mount/Read/Write Test
+
+```sh
+make qemu-fs-rw-test
+```
+
+Builds host-side OTFS utilities, generates a deterministic filesystem image, and runs the
+read/write validation flow. The test covers mount/unmount, create+truncate semantics,
+offset writes via `fs_seek`, multi-block reads/writes, sparse writes with zero-filled gaps,
+and remount persistence checks.
+
+Expected output includes:
+
+```text
+PASS: mount/open/read/write/close checks completed
+```
+
+## Directory Traversal and Path Resolution Unit Test
+
+```sh
+make test-fs-dir
+```
+
+Builds and runs the host-side directory/path unit tests (`build/fs/fs_dir_test`) that validate:
+
+- path normalization (`fs_path_normalize`)
+- absolute/relative path resolution with root clamping (`fs_path_resolve`)
+- directory traversal and navigation (`fs_dir_walk`, `fs_dir_cd`, `fs_dir_pwd`)
+- deterministic directory listing order and count reporting (`fs_dir_readdir`)
+- directory creation semantics (`fs_dir_mkdir`, `fs_dir_mkdir_p`)
+
+Expected output includes:
+
+```text
+fs dir tests passed
 ```
 
 ## Useful Variables

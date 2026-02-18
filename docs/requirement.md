@@ -28,7 +28,7 @@ We want to develop an OS on RISC-V with a workflow that can be continuously driv
 - [x] Kernel image builds successfully with the project's standard build command (`make`).
 - [x] Running the image on QEMU reaches kernel entry and prints a boot banner to serial console (`BOOT: kernel entry`).
 - [x] UART console input/output works for at least line-based command input.
-- [ ] Trap/exception handler is wired and logs cause information on unexpected trap.
+- [x] Trap/exception handler is wired and logs cause information on unexpected trap.
 - [ ] Timer interrupt is enabled and at least one periodic tick is observable in logs.
 - [x] A simple physical page allocator (4KiB pages) is implemented with basic allocation/free tests.
 - [ ] Basic kernel task execution is possible (at least two runnable tasks with round-robin scheduling).
@@ -53,8 +53,9 @@ We want to develop an OS on RISC-V with a workflow that can be continuously driv
 
 ### File System
 
-- [ ] A basic file system (e.g., FAT12/FAT32 or minimal custom) is mounted.
-- [ ] Files can be read and written through the kernel or shell.
+- [x] A basic file system (e.g., FAT12/FAT32 or minimal custom) is mounted.
+- [x] Files can be read and written through the kernel or shell.
+- [x] Path normalization/resolution helpers support `.`/`..`, repeated separators, and absolute/relative inputs.
 - [ ] Directory listing and traversal work (`ls`, `cd`, `pwd`).
 
 ### Verification
@@ -138,6 +139,9 @@ Current bootstrap commands:
 
 - Build kernel artifacts: `make`
 - Run boot smoke test on QEMU: `make qemu-smoke`
+- Run trap handler test on QEMU: `make qemu-trap-test`
 - Run framebuffer graphics test on QEMU: `make qemu-gfx-test`
 - Run UART serial line echo test on QEMU: `make qemu-serial-echo-test`
 - Run physical page allocator unit tests: `make test-page-alloc`
+- Run OTFS mount/read/write regression test: `make qemu-fs-rw-test`
+- Run directory traversal/path resolution unit tests: `make test-fs-dir`
