@@ -34,10 +34,24 @@ The smoke test runs `scripts/run_qemu.sh`, boots the kernel on QEMU `virt`, and 
 BOOT: kernel entry
 ```
 
+## UART Line I/O Echo Test
+
+```sh
+make qemu-serial-echo-test
+```
+
+The serial echo test boots the kernel, sends a line over UART, and verifies:
+
+```text
+BOOT: kernel entry
+echo: uart line echo test
+```
+
 ## Useful Variables
 
 - `CROSS_COMPILE` (default: `riscv64-unknown-elf-`)
 - `QEMU` (default: `qemu-system-riscv64`)
+- `TIMEOUT_BIN` (default: `timeout`)
 
 Example:
 
