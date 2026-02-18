@@ -43,6 +43,10 @@ SRCS_C := \
 	shell/shell.c \
 	shell/parser.c \
 	shell/builtins_basic.c \
+	shell/builtins_fs.c \
+	shell/path_state.c \
+	fs/path.c \
+	fs/dir.c \
 	kernel/gfx/framebuffer.c \
 	kernel/wm/window.c \
 	kernel/wm/layers.c \
@@ -63,7 +67,7 @@ TEST_PAGE_ALLOC_SRCS := \
 	tests/kernel/test_page_alloc.c \
 	kernel/mm/page_alloc.c
 
-.PHONY: all clean test-smoke qemu-smoke qemu-gfx-test qemu-wm-single-test qemu-wm-overlap-test qemu-keyboard-focus-test qemu-mouse-test qemu-app-window-test qemu-serial-echo-test qemu-shell-basic-test qemu-trap-test qemu-timer-test qemu-sched-test qemu-fs-rw-test test-page-alloc test-fs-dir
+.PHONY: all clean test-smoke qemu-smoke qemu-gfx-test qemu-wm-single-test qemu-wm-overlap-test qemu-keyboard-focus-test qemu-mouse-test qemu-app-window-test qemu-serial-echo-test qemu-shell-basic-test qemu-shell-fs-test qemu-trap-test qemu-timer-test qemu-sched-test qemu-fs-rw-test test-page-alloc test-fs-dir
 
 all: $(KERNEL_ELF) $(KERNEL_BIN)
 
@@ -169,6 +173,68 @@ qemu-shell-basic-test: $(KERNEL_ELF)
 	printf '%s\n' "$$OUTPUT" | grep -F "meminfo - show allocator usage" >/dev/null; \
 	printf '%s\n' "$$OUTPUT" | grep -F "echo: shell basic" >/dev/null; \
 	printf '%s\n' "$$OUTPUT" | grep -F "meminfo: range=0x" >/dev/null
+
+qemu-shell-fs-test: $(KERNEL_ELF)
+	@set -eu; \
+	OUTPUT="$$( \
+		{ \
+			sleep 1; \
+			printf '%s\r\n' "help"; \
+			sleep 1; \
+			printf '%s\r\n' "pwd"; \
+			sleep 1; \
+			printf '%s\r\n' "ls"; \
+			sleep 1; \
+			printf '%s\r\n' "cat hello.txt"; \
+			sleep 1; \
+			printf '%s\r\n' "mkdir projects"; \
+			sleep 1; \
+			printf '%s\r\n' "cd projects"; \
+			sleep 1; \
+			printf '%s\r\n' "pwd"; \
+			sleep 1; \
+			printf '%s\r\n' "mkdir notes"; \
+			sleep 1; \
+			printf '%s\r\n' "ls"; \
+			sleep 1; \
+			printf '%s\r\n' "cd /"; \
+			sleep 1; \
+			printf '%s\r\n' "ls"; \
+			sleep 1; \
+			printf '%s\r\n' "cat /etc/motd"; \
+			sleep 1; \
+			printf '%s\r\n' "cd /projects"; \
+			sleep 1; \
+			printf '%s\r\n' "cd /missing"; \
+			sleep 1; \
+			printf '%s\r\n' "pwd"; \
+		} | \
+		"$(TIMEOUT_BIN)" 16s "$(QEMU)" \
+			-machine virt \
+			-cpu rv64 \
+			-m 128M \
+			-smp 1 \
+			-nographic \
+			-monitor none \
+			-serial stdio \
+			-kernel "$(KERNEL_ELF)" \
+			2>&1 || true \
+	)"; \
+	printf '%s\n' "$$OUTPUT"; \
+	printf '%s\n' "$$OUTPUT" | grep -F "BOOT: kernel entry" >/dev/null; \
+	printf '%s\n' "$$OUTPUT" | grep -F "ls - list files and directories" >/dev/null; \
+	printf '%s\n' "$$OUTPUT" | grep -F "cat - print file contents" >/dev/null; \
+	printf '%s\n' "$$OUTPUT" | grep -F "pwd - print current directory" >/dev/null; \
+	printf '%s\n' "$$OUTPUT" | grep -F "cd - change current directory" >/dev/null; \
+	printf '%s\n' "$$OUTPUT" | grep -F "mkdir - create directory" >/dev/null; \
+	printf '%s\n' "$$OUTPUT" | grep -F "etc/" >/dev/null; \
+	printf '%s\n' "$$OUTPUT" | grep -F "hello.txt" >/dev/null; \
+	printf '%s\n' "$$OUTPUT" | grep -F "hello from shell fs" >/dev/null; \
+	printf '%s\n' "$$OUTPUT" | grep -F "/projects" >/dev/null; \
+	printf '%s\n' "$$OUTPUT" | grep -F "notes/" >/dev/null; \
+	printf '%s\n' "$$OUTPUT" | grep -F "projects/" >/dev/null; \
+	printf '%s\n' "$$OUTPUT" | grep -F "openTiger shell filesystem" >/dev/null; \
+	printf '%s\n' "$$OUTPUT" | grep -F "cd: no such directory" >/dev/null
 
 qemu-fs-rw-test: $(FS_TEST_BIN) $(FS_MKFS_BIN) scripts/gen_fs_image.sh
 	./scripts/gen_fs_image.sh "$(FS_TEST_IMAGE)" "$(FS_MKFS_BIN)"

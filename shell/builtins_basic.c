@@ -5,6 +5,7 @@
 #include "line_io.h"
 #include "page_alloc.h"
 #include "shell_builtins.h"
+#include "shell_builtins_fs.h"
 
 typedef int (*shell_builtin_fn_t)(int argc, char **argv);
 
@@ -69,6 +70,11 @@ static const shell_builtin_t g_shell_builtins[] = {
     {"help", "show this help", shell_builtin_help},
     {"echo", "print arguments", shell_builtin_echo},
     {"meminfo", "show allocator usage", shell_builtin_meminfo},
+    {"ls", "list files and directories", shell_builtin_ls},
+    {"cat", "print file contents", shell_builtin_cat},
+    {"pwd", "print current directory", shell_builtin_pwd},
+    {"cd", "change current directory", shell_builtin_cd},
+    {"mkdir", "create directory", shell_builtin_mkdir},
 };
 
 static int shell_builtin_help(int argc, char **argv) {

@@ -1,5 +1,4 @@
 #include <stddef.h>
-#include <string.h>
 
 #include "fs_path.h"
 
@@ -7,6 +6,42 @@ typedef struct {
   size_t offset;
   size_t len;
 } path_segment_t;
+
+static size_t path_strlen(const char *s) {
+  size_t len = 0u;
+  if (s == NULL) {
+    return 0u;
+  }
+  while (s[len] != '\0') {
+    ++len;
+  }
+  return len;
+}
+
+static void path_copy(char *dst, const char *src, size_t len) {
+  size_t i = 0u;
+  while (i < len) {
+    dst[i] = src[i];
+    ++i;
+  }
+}
+
+static int path_eq(const char *a, const char *b) {
+  size_t i = 0u;
+
+  if (a == NULL || b == NULL) {
+    return 0;
+  }
+
+  while (a[i] != '\0' && b[i] != '\0') {
+    if (a[i] != b[i]) {
+      return 0;
+    }
+    ++i;
+  }
+
+  return a[i] == b[i];
+}
 
 static int segment_is_dot(const char *segment, size_t len) {
   return len == 1u && segment[0] == '.';
@@ -71,7 +106,7 @@ int fs_path_normalize(const char *path, char *out, size_t out_len) {
       return -1;
     }
 
-    memcpy(&segment_pool[pool_used], &path[start], seg_len);
+    path_copy(&segment_pool[pool_used], &path[start], seg_len);
     segment_pool[pool_used + seg_len] = '\0';
     segments[seg_count].offset = pool_used;
     segments[seg_count].len = seg_len;
@@ -112,7 +147,7 @@ int fs_path_normalize(const char *path, char *out, size_t out_len) {
     if (out_used + seg.len + 1u > out_len) {
       return -1;
     }
-    memcpy(&out[out_used], &segment_pool[seg.offset], seg.len);
+    path_copy(&out[out_used], &segment_pool[seg.offset], seg.len);
     out_used += seg.len;
   }
 
@@ -143,19 +178,19 @@ int fs_path_resolve(const char *cwd, const char *path, char *out, size_t out_len
     return fs_path_normalize(cwd_normalized, out, out_len);
   }
 
-  cwd_len = strlen(cwd_normalized);
-  path_len = strlen(path);
+  cwd_len = path_strlen(cwd_normalized);
+  path_len = path_strlen(path);
   if (cwd_len + path_len + 2u > sizeof(joined)) {
     return -1;
   }
 
-  if (strcmp(cwd_normalized, "/") == 0) {
-    memcpy(joined, "/", 2u);
-    memcpy(&joined[1], path, path_len + 1u);
+  if (path_eq(cwd_normalized, "/")) {
+    path_copy(joined, "/", 2u);
+    path_copy(&joined[1], path, path_len + 1u);
   } else {
-    memcpy(joined, cwd_normalized, cwd_len);
+    path_copy(joined, cwd_normalized, cwd_len);
     joined[cwd_len] = '/';
-    memcpy(&joined[cwd_len + 1u], path, path_len + 1u);
+    path_copy(&joined[cwd_len + 1u], path, path_len + 1u);
   }
 
   return fs_path_normalize(joined, out, out_len);
