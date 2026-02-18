@@ -23,7 +23,9 @@ SRCS_C := \
 	kernel/mm/init.c \
 	kernel/mm/page_alloc.c \
 	kernel/main.c \
-	shell/line_io.c
+	shell/line_io.c \
+	kernel/gfx/framebuffer.c \
+	drivers/video/qemu_virt_fb.c
 SRCS_S := arch/riscv/start.S
 OBJS := \
 	$(patsubst %.c,$(BUILD_DIR)/%.o,$(SRCS_C)) \
@@ -35,7 +37,7 @@ TEST_PAGE_ALLOC_SRCS := \
 	tests/kernel/test_page_alloc.c \
 	kernel/mm/page_alloc.c
 
-.PHONY: all clean qemu-smoke qemu-serial-echo-test test-page-alloc
+.PHONY: all clean qemu-smoke qemu-gfx-test qemu-serial-echo-test test-page-alloc
 
 all: $(KERNEL_ELF) $(KERNEL_BIN)
 
@@ -57,6 +59,10 @@ $(KERNEL_BIN): $(KERNEL_ELF)
 
 qemu-smoke: $(KERNEL_ELF) scripts/run_qemu.sh
 	QEMU_BIN="$(QEMU)" ./scripts/run_qemu.sh "$(KERNEL_ELF)" "BOOT: kernel entry"
+
+qemu-gfx-test: $(KERNEL_ELF) scripts/run_qemu.sh
+	QEMU_BIN="$(QEMU)" ./scripts/run_qemu.sh "$(KERNEL_ELF)" "GFX: framebuffer initialized"
+	QEMU_BIN="$(QEMU)" ./scripts/run_qemu.sh "$(KERNEL_ELF)" "GFX: deterministic marker 0x"
 
 qemu-serial-echo-test: $(KERNEL_ELF)
 	@set -eu; \
