@@ -1,79 +1,97 @@
 #include <stdint.h>
-#include <stddef.h>
 
 #include "task.h"
 
-static void task_zero_trap_frame(struct trap_frame *frame) {
-  uint64_t *words;
-  size_t i;
-  size_t count;
+static task_control_block_t g_tasks[TASK_MAX_TASKS];
 
-  if (frame == 0) {
-    return;
-  }
-
-  words = (uint64_t *)frame;
-  count = sizeof(*frame) / sizeof(uint64_t);
-  for (i = 0; i < count; ++i) {
-    words[i] = 0ULL;
-  }
-}
-
-void task_init(kernel_task_t *task,
-               uint32_t id,
-               const char *name,
-               task_entry_t entry,
-               uint8_t *stack_base,
-               uint64_t stack_size) {
-  uintptr_t top;
-
-  if (task == 0) {
+static void task_reset(task_control_block_t *task, uint32_t id) {
+  if (task == (task_control_block_t *)0) {
     return;
   }
 
   task->id = id;
-  task->name = name;
+  task->name = (const char *)0;
   task->state = TASK_STATE_UNUSED;
-  task->entry = entry;
-  task->stack_base = stack_base;
-  task->stack_size = stack_size;
   task->run_count = 0ULL;
-  task_zero_trap_frame(&task->context);
-
-  if (stack_base != 0 && stack_size != 0ULL) {
-    top = (uintptr_t)(stack_base + stack_size);
-    top &= ~(uintptr_t)0xFULL;
-    task->context.sp = (uint64_t)top;
-  }
-  task->context.mepc = (uint64_t)(uintptr_t)entry;
+  task->context.switches_in = 0ULL;
+  task->context.switches_out = 0ULL;
+  task->context.last_mepc = 0ULL;
+  task->context.last_mcause = 0ULL;
+  task->entry = (task_entry_fn)0;
 }
 
-void task_mark_runnable(kernel_task_t *task) {
-  if (task == 0) {
-    return;
+void task_system_init(void) {
+  uint32_t i;
+
+  for (i = 0u; i < TASK_MAX_TASKS; ++i) {
+    task_reset(&g_tasks[i], i + 1u);
   }
-  task->state = TASK_STATE_RUNNABLE;
 }
 
-void task_mark_running(kernel_task_t *task) {
-  if (task == 0) {
+task_control_block_t *task_create(const char *name, task_entry_fn entry) {
+  uint32_t i;
+
+  if (entry == (task_entry_fn)0) {
+    return (task_control_block_t *)0;
+  }
+
+  for (i = 0u; i < TASK_MAX_TASKS; ++i) {
+    if (g_tasks[i].state != TASK_STATE_UNUSED) {
+      continue;
+    }
+
+    g_tasks[i].name = name;
+    g_tasks[i].state = TASK_STATE_RUNNABLE;
+    g_tasks[i].run_count = 0ULL;
+    g_tasks[i].context.switches_in = 0ULL;
+    g_tasks[i].context.switches_out = 0ULL;
+    g_tasks[i].context.last_mepc = 0ULL;
+    g_tasks[i].context.last_mcause = 0ULL;
+    g_tasks[i].entry = entry;
+    return &g_tasks[i];
+  }
+
+  return (task_control_block_t *)0;
+}
+
+task_control_block_t *task_find(uint32_t task_id) {
+  uint32_t i;
+
+  for (i = 0u; i < TASK_MAX_TASKS; ++i) {
+    if (g_tasks[i].id == task_id && g_tasks[i].state != TASK_STATE_UNUSED) {
+      return &g_tasks[i];
+    }
+  }
+
+  return (task_control_block_t *)0;
+}
+
+void task_context_switch_out(task_control_block_t *task, const struct trap_frame *frame) {
+  if (task == (task_control_block_t *)0) {
     return;
   }
+
+  task->context.switches_out += 1ULL;
+  if (frame != (const struct trap_frame *)0) {
+    task->context.last_mepc = frame->mepc;
+    task->context.last_mcause = frame->mcause;
+  }
+
+  if (task->state == TASK_STATE_RUNNING) {
+    task->state = TASK_STATE_RUNNABLE;
+  }
+}
+
+void task_context_switch_in(task_control_block_t *task, const struct trap_frame *frame) {
+  if (task == (task_control_block_t *)0) {
+    return;
+  }
+
+  task->context.switches_in += 1ULL;
+  if (frame != (const struct trap_frame *)0) {
+    task->context.last_mepc = frame->mepc;
+    task->context.last_mcause = frame->mcause;
+  }
+
   task->state = TASK_STATE_RUNNING;
-}
-
-void task_context_save(kernel_task_t *task, const struct trap_frame *frame) {
-  if (task == 0 || frame == 0) {
-    return;
-  }
-
-  task->context = *frame;
-}
-
-void task_context_restore(const kernel_task_t *task, struct trap_frame *frame) {
-  if (task == 0 || frame == 0) {
-    return;
-  }
-
-  *frame = task->context;
 }

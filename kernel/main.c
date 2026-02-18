@@ -159,7 +159,7 @@ void kernel_main(void) {
   line_io_write("console: line io ready\n");
   trap_test_trigger();
   clock_init();
-  sched_init();
+  sched_bootstrap_test_tasks();
 
   if (framebuffer_init() != 0) {
     line_io_write("GFX: framebuffer init failed\n");

@@ -84,7 +84,7 @@ static bool trap_dispatch_interrupt(struct trap_frame *frame, uint64_t code) {
     case MCAUSE_INTERRUPT_SUPERVISOR_TIMER:
     case MCAUSE_INTERRUPT_MACHINE_TIMER:
       clock_handle_timer_interrupt();
-      sched_handle_timer_tick(frame);
+      sched_handle_timer_interrupt(frame);
       return true;
     default:
       return false;
