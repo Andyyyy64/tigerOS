@@ -35,6 +35,9 @@ BOOT: kernel entry
 TRAP_TEST: handled (or TICK: periodic interrupt)
 ```
 
+With timer interrupts enabled during `clock_init()`, boot output may include up to
+four `TICK: periodic interrupt` lines as periodic timer interrupts are serviced.
+
 ## Trap Handler Test
 
 ```sh
