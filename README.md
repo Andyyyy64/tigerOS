@@ -99,6 +99,25 @@ Expected output includes:
 WM: overlap focus activation marker 0x...
 ```
 
+## Window Manager Mouse Input/Drag Dispatch Test
+
+```sh
+make qemu-mouse-test
+```
+
+Boots the kernel with two draggable windows and validates the mouse input pipeline end-to-end:
+
+- mouse move/button events are queued
+- click-down dispatch targets the hit-tested front window/task
+- left-button title-bar drag updates the dragged window frame
+- click-up ends drag tracking and dispatch flow
+
+Expected output includes:
+
+```text
+WM: mouse dispatch drag marker 0x...
+```
+
 ## UART Line I/O Echo Test
 
 ```sh
