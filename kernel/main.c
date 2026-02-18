@@ -1,5 +1,6 @@
 #include <stdint.h>
 
+#include "apps/multi_terminal_test.h"
 #include "apps/demo_window_app.h"
 #include "clock.h"
 #include "console.h"
@@ -141,11 +142,13 @@ void kernel_main(void) {
   uint32_t keyboard_events_front = 0u;
   uint32_t keyboard_events_back = 0u;
   uint32_t keyboard_events_processed = 0u;
+  uint32_t multi_terminal_marker = 0u;
   uint32_t front_initial_x = 0u;
   uint32_t front_initial_y = 0u;
   int overlap_ok = 0;
   int mouse_ok = 0;
   int keyboard_ok = 0;
+  int multi_terminal_ok = 0;
   const wm_window_t *hit_before;
   const wm_window_t *hit_after;
   const wm_window_t *active_window;
@@ -319,6 +322,18 @@ void kernel_main(void) {
     line_io_write("\n");
   } else {
     line_io_write("WM: keyboard focus routing failed\n");
+  }
+
+  if (multi_terminal_test_run(&multi_terminal_marker) == 0) {
+    multi_terminal_ok = 1;
+  }
+
+  if (multi_terminal_ok != 0) {
+    line_io_write("WM: multi terminal isolation marker 0x");
+    console_put_hex32(multi_terminal_marker);
+    line_io_write("\n");
+  } else {
+    line_io_write("WM: multi terminal isolation failed\n");
   }
 
   if (demo_window_app_register() == 0) {
