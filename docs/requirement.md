@@ -31,7 +31,7 @@ We want to develop an OS on RISC-V with a workflow that can be continuously driv
 - [x] Trap/exception handler is wired and logs cause information on unexpected trap.
 - [x] Timer interrupt is enabled and at least one periodic tick is observable in logs.
 - [x] A simple physical page allocator (4KiB pages) is implemented with basic allocation/free tests.
-- [ ] Basic kernel task execution is possible (at least two runnable tasks with round-robin scheduling).
+- [x] Basic kernel task execution is possible (at least two runnable tasks with round-robin scheduling).
 
 ### Graphics and Window Manager
 
@@ -140,6 +140,7 @@ Current bootstrap commands:
 - Build kernel artifacts: `make`
 - Run boot smoke test on QEMU: `make qemu-smoke`
 - Run trap handler test on QEMU: `make qemu-trap-test`
+- Run round-robin scheduler test on QEMU: `make qemu-sched-test`
 - Run framebuffer graphics test on QEMU: `make qemu-gfx-test`
 - Run single-window composition test on QEMU: `make qemu-wm-single-test`
 - Run overlap/focus/layer activation test on QEMU: `make qemu-wm-overlap-test`
