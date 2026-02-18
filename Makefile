@@ -38,6 +38,7 @@ SRCS_C := \
 	kernel/input/keyboard_dispatch.c \
 	apps/libapp/app_window.c \
 	apps/demo_window_app.c \
+	apps/terminal/multi_terminal_test.c \
 	kernel/main.c \
 	shell/line_io.c \
 	shell/shell.c \
@@ -51,11 +52,13 @@ SRCS_C := \
 	fs/path.c \
 	fs/dir.c \
 	kernel/gfx/framebuffer.c \
+	kernel/tty/terminal_session.c \
 	kernel/wm/window.c \
 	kernel/wm/layers.c \
 	kernel/wm/focus.c \
 	kernel/wm/compositor.c \
 	kernel/wm/drag.c \
+	kernel/wm/terminal_window.c \
 	drivers/video/qemu_virt_fb.c
 SRCS_S := \
 	arch/riscv/start.S \
@@ -69,8 +72,10 @@ TEST_PAGE_ALLOC_SRCS := \
 	tests/kernel/test_main.c \
 	tests/kernel/test_page_alloc.c \
 	kernel/mm/page_alloc.c
+TEST_SCHED_TIMER_BIN := $(BUILD_DIR)/test-sched-timer
+TEST_SHELL_BIN := $(BUILD_DIR)/test-shell
 
-.PHONY: all clean test-smoke qemu-smoke qemu-gfx-test qemu-wm-single-test qemu-wm-overlap-test qemu-keyboard-focus-test qemu-mouse-test qemu-app-window-test qemu-serial-echo-test qemu-shell-basic-test qemu-shell-fs-test qemu-shell-pipe-test qemu-trap-test qemu-timer-test qemu-sched-test qemu-fs-rw-test test-page-alloc test-fs-dir
+.PHONY: all clean test test-smoke qemu-smoke qemu-gfx-test qemu-wm-single-test qemu-wm-overlap-test qemu-keyboard-focus-test qemu-multi-term-test qemu-mouse-test qemu-app-window-test qemu-serial-echo-test qemu-shell-basic-test qemu-shell-fs-test qemu-shell-pipe-test qemu-trap-test qemu-timer-test qemu-sched-test qemu-fs-rw-test test-page-alloc test-fs-dir test-sched-timer test-shell
 
 all: $(KERNEL_ELF) $(KERNEL_BIN)
 
@@ -122,6 +127,9 @@ qemu-mouse-test: $(KERNEL_ELF) scripts/run_qemu.sh
 
 qemu-keyboard-focus-test: $(KERNEL_ELF) scripts/run_qemu.sh
 	QEMU_BIN="$(QEMU)" ./scripts/run_qemu.sh "$(KERNEL_ELF)" "WM: keyboard focus routing marker 0x"
+
+qemu-multi-term-test: $(KERNEL_ELF) scripts/run_qemu.sh
+	QEMU_BIN="$(QEMU)" ./scripts/run_qemu.sh "$(KERNEL_ELF)" "WM: multi terminal isolation marker 0x"
 
 qemu-app-window-test: $(KERNEL_ELF) scripts/run_qemu.sh
 	QEMU_BIN="$(QEMU)" ./scripts/run_qemu.sh "$(KERNEL_ELF)" "APP: demo window callback marker 0x"
@@ -352,6 +360,23 @@ test-page-alloc: $(TEST_PAGE_ALLOC_BIN) scripts/run_unit_tests.sh
 
 test-fs-dir: $(FS_DIR_TEST_BIN) scripts/run_unit_tests.sh
 	./scripts/run_unit_tests.sh "$(FS_DIR_TEST_BIN)"
+
+$(TEST_SCHED_TIMER_BIN): tests/kernel/test_sched_timer.c kernel/sched/rr.c kernel/task/task.c kernel/clock.c include/sched.h include/task.h include/clock.h include/trap.h include/line_io.h include/console.h include/riscv_timer.h
+	@mkdir -p "$(BUILD_DIR)"
+	$(HOST_CC) $(HOST_CFLAGS) -Iinclude tests/kernel/test_sched_timer.c kernel/sched/rr.c kernel/task/task.c kernel/clock.c -o "$@"
+
+test-sched-timer: $(TEST_SCHED_TIMER_BIN) scripts/run_unit_tests.sh
+	./scripts/run_unit_tests.sh "$(TEST_SCHED_TIMER_BIN)"
+
+$(TEST_SHELL_BIN): tests/shell/test_shell_commands.c shell/parser.c shell/fd_table.c shell/builtins_basic.c shell/builtins_fs.c shell/path_state.c fs/path.c fs/dir.c kernel/mm/page_alloc.c include/shell_builtins.h include/shell_builtins_fs.h include/shell_parser.h include/shell_fd_table.h include/path_state.h include/fs_dir.h include/fs_path.h include/page_alloc.h include/line_io.h include/console.h
+	@mkdir -p "$(BUILD_DIR)"
+	$(HOST_CC) $(HOST_CFLAGS) -Iinclude tests/shell/test_shell_commands.c shell/parser.c shell/fd_table.c shell/builtins_basic.c shell/builtins_fs.c shell/path_state.c fs/path.c fs/dir.c kernel/mm/page_alloc.c -o "$@"
+
+test-shell: $(TEST_SHELL_BIN) scripts/run_unit_tests.sh
+	./scripts/run_unit_tests.sh "$(TEST_SHELL_BIN)"
+
+test: scripts/run_tests.sh
+	./scripts/run_tests.sh "$(MAKE)" test-page-alloc test-sched-timer test-fs-dir test-shell
 
 clean:
 	rm -rf "$(BUILD_DIR)"

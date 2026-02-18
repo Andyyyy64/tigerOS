@@ -62,7 +62,7 @@ We want to develop an OS on RISC-V with a workflow that can be continuously driv
 ### Verification
 
 - [x] The project has at least one automated smoke test that boots in QEMU and checks expected boot log markers (`make test-smoke`/`make qemu-smoke` checks `BOOT: kernel entry` plus `TRAP_TEST: handled` or `TICK: periodic interrupt`).
-- [ ] Core kernel changes are covered by unit/integration tests where feasible, and all required checks pass.
+- [x] Core kernel changes are covered by unit/integration tests where feasible, and all required checks pass (`make test` runs `test-page-alloc`, `test-sched-timer`, `test-fs-dir`, and `test-shell`).
 
 ## Scope
 
@@ -151,6 +151,9 @@ Current bootstrap commands:
 - Run UART serial line echo test on QEMU: `make qemu-serial-echo-test`
 - Run shell basic builtins test on QEMU: `make qemu-shell-basic-test`
 - Run shell filesystem builtins test on QEMU: `make qemu-shell-fs-test`
+- Run the aggregated host-side core unit/integration suite: `make test`
 - Run physical page allocator unit tests: `make test-page-alloc`
+- Run scheduler/timer integration unit tests: `make test-sched-timer`
+- Run shell command unit/integration tests: `make test-shell`
 - Run OTFS mount/read/write regression test: `make qemu-fs-rw-test`
 - Run directory traversal/path resolution unit tests: `make test-fs-dir`

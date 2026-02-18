@@ -21,9 +21,8 @@ typedef struct {
   size_t content_len;
 } path_state_dynamic_file_t;
 
-static fs_dir_tree_t g_path_tree;
-static int g_path_ready;
 static path_state_dynamic_file_t g_dynamic_files[PATH_STATE_DYNAMIC_MAX_FILES];
+static path_state_context_t g_default_path_context;
 
 static const path_state_file_t g_seed_files[] = {
     {"/hello.txt", "hello from shell fs\n"},
@@ -101,6 +100,10 @@ static void dynamic_files_reset(void) {
   }
 }
 
+static int context_supports_dynamic_files(path_state_context_t *ctx) {
+  return ctx == &g_default_path_context;
+}
+
 static int path_basename(const char *path, char *out, size_t out_len) {
   size_t i = 0u;
   size_t last_slash = 0u;
@@ -160,18 +163,18 @@ static int path_parent(const char *path, char *out, size_t out_len) {
   return 0;
 }
 
-static int resolve_to_absolute(const char *path, char *out, size_t out_len) {
+static int resolve_to_absolute(path_state_context_t *ctx, const char *path, char *out, size_t out_len) {
   char cwd[FS_PATH_MAX];
   const char *input = path;
 
-  if (out == NULL || out_len == 0u) {
+  if (ctx == NULL || out == NULL || out_len == 0u) {
     return -1;
   }
   if (input == NULL || input[0] == '\0') {
     input = ".";
   }
 
-  if (fs_dir_pwd(&g_path_tree, cwd, sizeof(cwd)) != 0) {
+  if (fs_dir_pwd(&ctx->tree, cwd, sizeof(cwd)) != 0) {
     return -1;
   }
 
@@ -289,17 +292,20 @@ static int entry_insert_sorted(path_state_entry_t *entries,
   return 0;
 }
 
-static int ensure_initialized(void) {
+static int ensure_initialized(path_state_context_t *ctx) {
   size_t i = 0u;
 
-  if (g_path_ready != 0) {
+  if (ctx == NULL) {
+    return -1;
+  }
+
+  if (ctx->ready != 0) {
     return 0;
   }
 
-  fs_dir_init(&g_path_tree);
-  dynamic_files_reset();
-  if (fs_dir_mkdir(&g_path_tree, "/etc") != 0 || fs_dir_mkdir(&g_path_tree, "/home") != 0 ||
-      fs_dir_mkdir(&g_path_tree, "/tmp") != 0) {
+  fs_dir_init(&ctx->tree);
+  if (fs_dir_mkdir(&ctx->tree, "/etc") != 0 || fs_dir_mkdir(&ctx->tree, "/home") != 0 ||
+      fs_dir_mkdir(&ctx->tree, "/tmp") != 0) {
     return -1;
   }
 
@@ -308,60 +314,68 @@ static int ensure_initialized(void) {
     if (path_parent(g_seed_files[i].path, parent, sizeof(parent)) != 0) {
       return -1;
     }
-    if (ps_strcmp(parent, "/") != 0 && fs_dir_mkdir_p(&g_path_tree, parent) != 0) {
+    if (ps_strcmp(parent, "/") != 0 && fs_dir_mkdir_p(&ctx->tree, parent) != 0) {
       return -1;
     }
   }
 
-  g_path_ready = 1;
+  ctx->ready = 1;
   return 0;
 }
 
-void path_state_init(void) {
-  g_path_ready = 0;
-  (void)ensure_initialized();
+void path_state_context_init(path_state_context_t *ctx) {
+  if (ctx == NULL) {
+    return;
+  }
+
+  fs_dir_init(&ctx->tree);
+  ctx->ready = 0;
 }
 
-int path_state_pwd(char *out, size_t out_len) {
-  if (ensure_initialized() != 0) {
+int path_state_context_pwd(path_state_context_t *ctx, char *out, size_t out_len) {
+  if (ensure_initialized(ctx) != 0) {
     return -1;
   }
-  return fs_dir_pwd(&g_path_tree, out, out_len);
+  return fs_dir_pwd(&ctx->tree, out, out_len);
 }
 
-int path_state_cd(const char *path) {
-  if (ensure_initialized() != 0) {
+int path_state_context_cd(path_state_context_t *ctx, const char *path) {
+  if (ensure_initialized(ctx) != 0) {
     return -1;
   }
   if (path == NULL) {
     return -1;
   }
-  return fs_dir_cd(&g_path_tree, path);
+  return fs_dir_cd(&ctx->tree, path);
 }
 
-int path_state_mkdir(const char *path) {
+int path_state_context_mkdir(path_state_context_t *ctx, const char *path) {
   char absolute[FS_PATH_MAX];
 
-  if (ensure_initialized() != 0) {
+  if (ensure_initialized(ctx) != 0) {
     return -1;
   }
-  if (path == NULL || resolve_to_absolute(path, absolute, sizeof(absolute)) != 0) {
+  if (path == NULL || resolve_to_absolute(ctx, path, absolute, sizeof(absolute)) != 0) {
     return -1;
   }
   if (absolute[0] == '/' && absolute[1] == '\0') {
     return -1;
   }
-  if (file_index_by_absolute(absolute) >= 0 || dynamic_file_index_by_absolute(absolute) >= 0) {
+  if (file_index_by_absolute(absolute) >= 0) {
+    return -1;
+  }
+  if (context_supports_dynamic_files(ctx) != 0 && dynamic_file_index_by_absolute(absolute) >= 0) {
     return -1;
   }
 
-  return fs_dir_mkdir(&g_path_tree, absolute);
+  return fs_dir_mkdir(&ctx->tree, absolute);
 }
 
-int path_state_ls(const char *path,
-                  path_state_entry_t *entries,
-                  size_t max_entries,
-                  size_t *out_count) {
+int path_state_context_ls(path_state_context_t *ctx,
+                          const char *path,
+                          path_state_entry_t *entries,
+                          size_t max_entries,
+                          size_t *out_count) {
   char absolute[FS_PATH_MAX];
   size_t count = 0u;
   int is_file_path = 0;
@@ -371,14 +385,17 @@ int path_state_ls(const char *path,
   }
   *out_count = 0u;
 
-  if (ensure_initialized() != 0) {
+  if (ensure_initialized(ctx) != 0) {
     return -1;
   }
-  if (resolve_to_absolute(path, absolute, sizeof(absolute)) != 0) {
+  if (resolve_to_absolute(ctx, path, absolute, sizeof(absolute)) != 0) {
     return -1;
   }
 
-  if (file_index_by_absolute(absolute) >= 0 || dynamic_file_index_by_absolute(absolute) >= 0) {
+  if (file_index_by_absolute(absolute) >= 0) {
+    is_file_path = 1;
+  }
+  if (context_supports_dynamic_files(ctx) != 0 && dynamic_file_index_by_absolute(absolute) >= 0) {
     is_file_path = 1;
   }
 
@@ -404,7 +421,7 @@ int path_state_ls(const char *path,
     size_t dir_count = 0u;
     size_t i = 0u;
 
-    if (fs_dir_readdir(&g_path_tree, absolute, dir_entries, FS_DIR_MAX_NODES, &dir_count) != 0) {
+    if (fs_dir_readdir(&ctx->tree, absolute, dir_entries, FS_DIR_MAX_NODES, &dir_count) != 0) {
       return -1;
     }
 
@@ -423,7 +440,8 @@ int path_state_ls(const char *path,
   {
     size_t i = 0u;
     for (i = 0u; i < (sizeof(g_seed_files) / sizeof(g_seed_files[0])); ++i) {
-      if (dynamic_file_index_by_absolute(g_seed_files[i].path) >= 0) {
+      if (context_supports_dynamic_files(ctx) != 0 &&
+          dynamic_file_index_by_absolute(g_seed_files[i].path) >= 0) {
         continue;
       }
       if (file_is_child_of_dir(&g_seed_files[i], absolute) != 0) {
@@ -443,7 +461,7 @@ int path_state_ls(const char *path,
     }
   }
 
-  {
+  if (context_supports_dynamic_files(ctx) != 0) {
     size_t i = 0u;
     for (i = 0u; i < PATH_STATE_DYNAMIC_MAX_FILES; ++i) {
       if (dynamic_file_is_child_of_dir(&g_dynamic_files[i], absolute) != 0) {
@@ -467,7 +485,7 @@ int path_state_ls(const char *path,
   return 0;
 }
 
-int path_state_cat(const char *path, const char **out_contents) {
+int path_state_context_cat(path_state_context_t *ctx, const char *path, const char **out_contents) {
   char absolute[FS_PATH_MAX];
   int dynamic_index;
   int file_index;
@@ -477,17 +495,19 @@ int path_state_cat(const char *path, const char **out_contents) {
   }
   *out_contents = NULL;
 
-  if (ensure_initialized() != 0) {
+  if (ensure_initialized(ctx) != 0) {
     return -1;
   }
-  if (path == NULL || resolve_to_absolute(path, absolute, sizeof(absolute)) != 0) {
+  if (path == NULL || resolve_to_absolute(ctx, path, absolute, sizeof(absolute)) != 0) {
     return -1;
   }
 
-  dynamic_index = dynamic_file_index_by_absolute(absolute);
-  if (dynamic_index >= 0) {
-    *out_contents = g_dynamic_files[(size_t)dynamic_index].content;
-    return 0;
+  if (context_supports_dynamic_files(ctx) != 0) {
+    dynamic_index = dynamic_file_index_by_absolute(absolute);
+    if (dynamic_index >= 0) {
+      *out_contents = g_dynamic_files[(size_t)dynamic_index].content;
+      return 0;
+    }
   }
 
   file_index = file_index_by_absolute(absolute);
@@ -500,6 +520,7 @@ int path_state_cat(const char *path, const char **out_contents) {
 }
 
 int path_state_write_file(const char *path, const char *content, size_t content_len, int append) {
+  path_state_context_t *ctx = &g_default_path_context;
   char absolute[FS_PATH_MAX];
   char parent[FS_PATH_MAX];
   int dir_index = -1;
@@ -508,11 +529,11 @@ int path_state_write_file(const char *path, const char *content, size_t content_
   int created_dynamic = 0;
   path_state_dynamic_file_t *target;
 
-  if (ensure_initialized() != 0) {
+  if (ensure_initialized(ctx) != 0) {
     return -1;
   }
 
-  if (path == NULL || resolve_to_absolute(path, absolute, sizeof(absolute)) != 0) {
+  if (path == NULL || resolve_to_absolute(ctx, path, absolute, sizeof(absolute)) != 0) {
     return -1;
   }
 
@@ -523,11 +544,11 @@ int path_state_write_file(const char *path, const char *content, size_t content_
   if (path_parent(absolute, parent, sizeof(parent)) != 0) {
     return -1;
   }
-  if (fs_dir_walk(&g_path_tree, parent, &dir_index) != 0) {
+  if (fs_dir_walk(&ctx->tree, parent, &dir_index) != 0) {
     return -1;
   }
 
-  if (fs_dir_walk(&g_path_tree, absolute, &dir_index) == 0) {
+  if (fs_dir_walk(&ctx->tree, absolute, &dir_index) == 0) {
     return -1;
   }
 
@@ -575,4 +596,29 @@ int path_state_write_file(const char *path, const char *content, size_t content_
   }
 
   return 0;
+}
+
+void path_state_init(void) {
+  path_state_context_init(&g_default_path_context);
+  dynamic_files_reset();
+  (void)ensure_initialized(&g_default_path_context);
+}
+
+int path_state_pwd(char *out, size_t out_len) {
+  return path_state_context_pwd(&g_default_path_context, out, out_len);
+}
+
+int path_state_cd(const char *path) { return path_state_context_cd(&g_default_path_context, path); }
+
+int path_state_mkdir(const char *path) { return path_state_context_mkdir(&g_default_path_context, path); }
+
+int path_state_ls(const char *path,
+                  path_state_entry_t *entries,
+                  size_t max_entries,
+                  size_t *out_count) {
+  return path_state_context_ls(&g_default_path_context, path, entries, max_entries, out_count);
+}
+
+int path_state_cat(const char *path, const char **out_contents) {
+  return path_state_context_cat(&g_default_path_context, path, out_contents);
 }

@@ -9,6 +9,7 @@ enum {
 
 static char g_line_buffer[LINE_IO_BUFFER_SIZE];
 static unsigned int g_line_len;
+static bool g_skip_lf_after_cr;
 
 static unsigned int line_io_copy_out(char *out, unsigned int out_len) {
   unsigned int copy_len = g_line_len;
@@ -61,7 +62,15 @@ int line_io_readline(char *out, unsigned int out_len, bool blocking) {
       return 0;
     }
 
+    if (g_skip_lf_after_cr) {
+      g_skip_lf_after_cr = false;
+      if (byte == '\n') {
+        continue;
+      }
+    }
+
     if (byte == '\r' || byte == '\n') {
+      g_skip_lf_after_cr = (byte == '\r');
       console_write("\n");
       line_len = line_io_copy_out(out, out_len);
       g_line_len = 0u;
