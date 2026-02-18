@@ -195,6 +195,27 @@ BOOT: kernel entry
 echo: uart line echo test
 ```
 
+## Shell Basic Builtins Test
+
+```sh
+make qemu-shell-basic-test
+```
+
+Boots the kernel, runs core shell command sequences over UART, and validates basic
+REPL builtins:
+
+- `help` prints the available command list
+- `echo` prints the provided arguments
+- `meminfo` reports allocator range and page usage counters
+
+Expected output includes:
+
+```text
+available commands:
+echo: shell basic
+meminfo: range=0x...
+```
+
 ## Shell Filesystem Builtins Test
 
 ```sh
