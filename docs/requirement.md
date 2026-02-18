@@ -46,9 +46,9 @@ We want to develop an OS on RISC-V with a workflow that can be continuously driv
 ### Shell and Unix-like Commands
 
 - [x] A terminal shell accepts line-based command input and shows output.
-- [ ] At least these commands work: `ls`, `cat`, `echo`, `pwd`, `cd`, `mkdir`, `help`.
-- [ ] `ls` lists directory contents (files and subdirectories).
-- [ ] `cat` reads and prints file contents.
+- [x] At least these commands work: `ls`, `cat`, `echo`, `pwd`, `cd`, `mkdir`, `help`.
+- [x] `ls` lists directory contents (files and subdirectories).
+- [x] `cat` reads and prints file contents.
 - [ ] Redirection (`>`, `>>`) and pipes are supported at a basic level (stretch goal).
 - [ ] Multiple terminals can run concurrently, each with independent shell state.
 
@@ -57,12 +57,12 @@ We want to develop an OS on RISC-V with a workflow that can be continuously driv
 - [x] A basic file system (e.g., FAT12/FAT32 or minimal custom) is mounted.
 - [x] Files can be read and written through the kernel or shell.
 - [x] Path normalization/resolution helpers support `.`/`..`, repeated separators, and absolute/relative inputs.
-- [ ] Directory listing and traversal work (`ls`, `cd`, `pwd`).
+- [x] Directory listing and traversal work (`ls`, `cd`, `pwd`).
 
 ### Verification
 
 - [x] The project has at least one automated smoke test that boots in QEMU and checks expected boot log markers (`make test-smoke`/`make qemu-smoke` checks `BOOT: kernel entry` plus `TRAP_TEST: handled` or `TICK: periodic interrupt`).
-- [ ] Core kernel changes are covered by unit/integration tests where feasible, and all required checks pass.
+- [x] Core kernel changes are covered by unit/integration tests where feasible, and all required checks pass (`make test` runs `test-page-alloc`, `test-sched-timer`, `test-fs-dir`, and `test-shell`).
 
 ## Scope
 
@@ -149,6 +149,11 @@ Current bootstrap commands:
 - Run keyboard focus routing test on QEMU: `make qemu-keyboard-focus-test`
 - Run application window API demo test on QEMU: `make qemu-app-window-test`
 - Run UART serial line echo test on QEMU: `make qemu-serial-echo-test`
+- Run shell basic builtins test on QEMU: `make qemu-shell-basic-test`
+- Run shell filesystem builtins test on QEMU: `make qemu-shell-fs-test`
+- Run the aggregated host-side core unit/integration suite: `make test`
 - Run physical page allocator unit tests: `make test-page-alloc`
+- Run scheduler/timer integration unit tests: `make test-sched-timer`
+- Run shell command unit/integration tests: `make test-shell`
 - Run OTFS mount/read/write regression test: `make qemu-fs-rw-test`
 - Run directory traversal/path resolution unit tests: `make test-fs-dir`
