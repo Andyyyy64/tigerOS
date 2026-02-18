@@ -3,6 +3,8 @@
 #include "clock.h"
 #include "console.h"
 #include "framebuffer.h"
+#include "keyboard.h"
+#include "keyboard_dispatch.h"
 #include "line_io.h"
 #include "mm_init.h"
 #include "mouse.h"
@@ -64,6 +66,66 @@ static void mouse_dispatch_record(uint32_t task_id, wm_dispatch_event_type_t dis
   }
 }
 
+typedef struct keyboard_dispatch_stats {
+  uint32_t text_count_task_1;
+  uint32_t text_count_task_2;
+  uint32_t control_count_task_1;
+  uint32_t control_count_task_2;
+  uint32_t invalid_endpoint_count;
+  uint32_t marker_hash;
+} keyboard_dispatch_stats_t;
+
+static keyboard_dispatch_stats_t g_keyboard_dispatch_stats;
+
+static void keyboard_dispatch_stats_reset(void) {
+  g_keyboard_dispatch_stats.text_count_task_1 = 0u;
+  g_keyboard_dispatch_stats.text_count_task_2 = 0u;
+  g_keyboard_dispatch_stats.control_count_task_1 = 0u;
+  g_keyboard_dispatch_stats.control_count_task_2 = 0u;
+  g_keyboard_dispatch_stats.invalid_endpoint_count = 0u;
+  g_keyboard_dispatch_stats.marker_hash = 2166136261u;
+}
+
+static void keyboard_dispatch_hash_byte(uint8_t value) {
+  g_keyboard_dispatch_stats.marker_hash ^= (uint32_t)value;
+  g_keyboard_dispatch_stats.marker_hash *= 16777619u;
+}
+
+static void keyboard_dispatch_record(uint32_t endpoint_id, const keyboard_event_t *event) {
+  if (event == (const keyboard_event_t *)0) {
+    return;
+  }
+
+  keyboard_dispatch_hash_byte((uint8_t)(endpoint_id & 0xffu));
+  keyboard_dispatch_hash_byte((uint8_t)event->type);
+
+  switch (event->type) {
+  case KEYBOARD_EVENT_TEXT:
+    keyboard_dispatch_hash_byte((uint8_t)event->text);
+    if (endpoint_id == 1u) {
+      g_keyboard_dispatch_stats.text_count_task_1 += 1u;
+    } else if (endpoint_id == 2u) {
+      g_keyboard_dispatch_stats.text_count_task_2 += 1u;
+    } else {
+      g_keyboard_dispatch_stats.invalid_endpoint_count += 1u;
+    }
+    break;
+  case KEYBOARD_EVENT_CONTROL:
+    keyboard_dispatch_hash_byte(event->control);
+    if (endpoint_id == 1u) {
+      g_keyboard_dispatch_stats.control_count_task_1 += 1u;
+    } else if (endpoint_id == 2u) {
+      g_keyboard_dispatch_stats.control_count_task_2 += 1u;
+    } else {
+      g_keyboard_dispatch_stats.invalid_endpoint_count += 1u;
+    }
+    break;
+  default:
+    g_keyboard_dispatch_stats.invalid_endpoint_count += 1u;
+    break;
+  }
+}
+
 void kernel_main(void) {
   uint32_t marker_a;
   uint32_t marker_b;
@@ -71,11 +133,16 @@ void kernel_main(void) {
   uint32_t overlap_marker_before;
   uint32_t overlap_marker_after;
   uint32_t mouse_marker = 0u;
+  uint32_t keyboard_marker = 0u;
   uint32_t mouse_events_processed = 0u;
+  uint32_t keyboard_events_front = 0u;
+  uint32_t keyboard_events_back = 0u;
+  uint32_t keyboard_events_processed = 0u;
   uint32_t front_initial_x = 0u;
   uint32_t front_initial_y = 0u;
   int overlap_ok = 0;
   int mouse_ok = 0;
+  int keyboard_ok = 0;
   const wm_window_t *hit_before;
   const wm_window_t *hit_after;
   const wm_window_t *active_window;
@@ -201,6 +268,54 @@ void kernel_main(void) {
     line_io_write("\n");
   } else {
     line_io_write("WM: mouse dispatch drag failed\n");
+  }
+
+  wm_window_init(&back_window, "Back", 48u, 40u, 220u, 160u);
+  back_window.style.title_bar_color = 0x00326f95u;
+  back_window.style.content_color = 0x00e9f3fbu;
+  wm_window_init(&front_window, "Front", 120u, 92u, 220u, 160u);
+  front_window.style.title_bar_color = 0x00814444u;
+  front_window.style.content_color = 0x00f5e6deu;
+  wm_compositor_reset(0x0014131au);
+  keyboard_reset();
+  keyboard_dispatch_reset();
+  keyboard_dispatch_set_sink(keyboard_dispatch_record);
+  keyboard_dispatch_stats_reset();
+
+  if (wm_compositor_add_window(&back_window) == 0 && wm_compositor_add_window(&front_window) == 0 &&
+      keyboard_dispatch_register_window(&back_window, 1u) == 0 &&
+      keyboard_dispatch_register_window(&front_window, 2u) == 0) {
+    (void)keyboard_handle_scancode(0x23u);
+    (void)keyboard_handle_scancode(0x17u);
+    (void)keyboard_handle_scancode(0x1cu);
+    keyboard_events_front = keyboard_dispatch_pending();
+
+    if (wm_compositor_activate_window(&back_window) == 0) {
+      (void)keyboard_handle_scancode(0x18u);
+      (void)keyboard_handle_scancode(0x0eu);
+      keyboard_events_back = keyboard_dispatch_pending();
+    }
+
+    active_window = wm_compositor_active_window();
+    keyboard_events_processed = keyboard_events_front + keyboard_events_back;
+    keyboard_marker = g_keyboard_dispatch_stats.marker_hash;
+
+    if (keyboard_events_front == 3u && keyboard_events_back == 2u && keyboard_events_processed == 5u &&
+        keyboard_pending_count() == 0u && g_keyboard_dispatch_stats.text_count_task_1 == 1u &&
+        g_keyboard_dispatch_stats.control_count_task_1 == 1u &&
+        g_keyboard_dispatch_stats.text_count_task_2 == 2u &&
+        g_keyboard_dispatch_stats.control_count_task_2 == 1u &&
+        g_keyboard_dispatch_stats.invalid_endpoint_count == 0u && active_window == &back_window) {
+      keyboard_ok = 1;
+    }
+  }
+
+  if (keyboard_ok != 0) {
+    line_io_write("WM: keyboard focus routing marker 0x");
+    console_put_hex32(keyboard_marker);
+    line_io_write("\n");
+  } else {
+    line_io_write("WM: keyboard focus routing failed\n");
   }
 
   for (;;) {
