@@ -29,7 +29,7 @@ We want to develop an OS on RISC-V with a workflow that can be continuously driv
 - [x] Running the image on QEMU reaches kernel entry and prints a boot banner to serial console (`BOOT: kernel entry`).
 - [x] UART console input/output works for at least line-based command input.
 - [x] Trap/exception handler is wired and logs cause information on unexpected trap.
-- [ ] Timer interrupt is enabled and at least one periodic tick is observable in logs.
+- [x] Timer interrupt is enabled and at least one periodic tick is observable in logs.
 - [x] A simple physical page allocator (4KiB pages) is implemented with basic allocation/free tests.
 - [ ] Basic kernel task execution is possible (at least two runnable tasks with round-robin scheduling).
 
