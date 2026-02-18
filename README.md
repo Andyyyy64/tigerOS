@@ -126,6 +126,24 @@ Expected output includes:
 WM: mouse dispatch drag marker 0x...
 ```
 
+## Window Manager Keyboard Focus Routing Test
+
+```sh
+make qemu-keyboard-focus-test
+```
+
+Boots the kernel with two windows and validates keyboard input routing by focus:
+
+- key events are queued with the focused window at enqueue time
+- dispatch routes events to the endpoint bound to that focused window
+- changing focus causes subsequent key events to route to the new focused endpoint
+
+Expected output includes:
+
+```text
+WM: keyboard focus routing marker 0x...
+```
+
 ## UART Line I/O Echo Test
 
 ```sh
