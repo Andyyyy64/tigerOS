@@ -22,10 +22,10 @@ void kernel_main(void) {
 
   console_init();
   mm_init();
-  trap_init();
   line_io_write("BOOT: kernel entry\n");
-  trap_trigger_self_test();
+  trap_init();
   line_io_write("console: line io ready\n");
+  trap_test_trigger();
 
   if (framebuffer_init() != 0) {
     line_io_write("GFX: framebuffer init failed\n");
