@@ -1,11 +1,14 @@
 #include "console.h"
 #include "line_io.h"
+#include "trap.h"
 
 void kernel_main(void) {
   char line[128];
 
   console_init();
   line_io_write("BOOT: kernel entry\n");
+  trap_init();
+  trap_trigger_test();
   line_io_write("console: line io ready\n");
 
   for (;;) {
