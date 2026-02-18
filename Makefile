@@ -24,11 +24,10 @@ HOST_CFLAGS ?= -std=c11 -O2 -g0 -Wall -Wextra -Werror
 
 SRCS_C := \
 	arch/riscv/timer.c \
-	drivers/input/keyboard.c \
 	drivers/uart/uart.c \
 	drivers/input/mouse.c \
+	drivers/input/keyboard.c \
 	kernel/console.c \
-	kernel/input/keyboard_dispatch.c \
 	kernel/clock.c \
 	kernel/trap.c \
 	kernel/task/task.c \
@@ -36,6 +35,7 @@ SRCS_C := \
 	kernel/mm/init.c \
 	kernel/mm/page_alloc.c \
 	kernel/input/event_queue.c \
+	kernel/input/keyboard_dispatch.c \
 	kernel/main.c \
 	shell/line_io.c \
 	kernel/gfx/framebuffer.c \
@@ -105,11 +105,11 @@ qemu-wm-single-test: $(KERNEL_ELF) scripts/run_qemu.sh
 qemu-wm-overlap-test: $(KERNEL_ELF) scripts/run_qemu.sh
 	QEMU_BIN="$(QEMU)" ./scripts/run_qemu.sh "$(KERNEL_ELF)" "WM: overlap focus activation marker 0x"
 
-qemu-keyboard-focus-test: $(KERNEL_ELF) scripts/run_qemu.sh
-	QEMU_BIN="$(QEMU)" ./scripts/run_qemu.sh "$(KERNEL_ELF)" "WM: keyboard focus routing marker 0x"
-
 qemu-mouse-test: $(KERNEL_ELF) scripts/run_qemu.sh
 	QEMU_BIN="$(QEMU)" ./scripts/run_qemu.sh "$(KERNEL_ELF)" "WM: mouse dispatch drag marker 0x"
+
+qemu-keyboard-focus-test: $(KERNEL_ELF) scripts/run_qemu.sh
+	QEMU_BIN="$(QEMU)" ./scripts/run_qemu.sh "$(KERNEL_ELF)" "WM: keyboard focus routing marker 0x"
 
 qemu-serial-echo-test: $(KERNEL_ELF)
 	@set -eu; \
