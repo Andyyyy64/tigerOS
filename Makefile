@@ -56,7 +56,7 @@ TEST_PAGE_ALLOC_SRCS := \
 	tests/kernel/test_page_alloc.c \
 	kernel/mm/page_alloc.c
 
-.PHONY: all clean qemu-smoke qemu-gfx-test qemu-wm-single-test qemu-wm-overlap-test qemu-keyboard-focus-test qemu-mouse-test qemu-serial-echo-test qemu-trap-test qemu-timer-test qemu-fs-rw-test test-page-alloc test-fs-dir
+.PHONY: all clean test-smoke qemu-smoke qemu-gfx-test qemu-wm-single-test qemu-wm-overlap-test qemu-keyboard-focus-test qemu-mouse-test qemu-serial-echo-test qemu-trap-test qemu-timer-test qemu-fs-rw-test test-page-alloc test-fs-dir
 
 all: $(KERNEL_ELF) $(KERNEL_BIN)
 
@@ -88,8 +88,10 @@ $(FS_DIR_TEST_BIN): tests/fs/test_fs_dir.c fs/dir.c fs/path.c include/fs_dir.h i
 	@mkdir -p "$(FS_BUILD_DIR)"
 	$(HOST_CC) $(HOST_CFLAGS) -Iinclude tests/fs/test_fs_dir.c fs/dir.c fs/path.c -o "$@"
 
-qemu-smoke: $(KERNEL_ELF) scripts/run_qemu.sh
-	QEMU_BIN="$(QEMU)" ./scripts/run_qemu.sh "$(KERNEL_ELF)" "BOOT: kernel entry"
+test-smoke: $(KERNEL_ELF) scripts/qemu_smoke.sh
+	QEMU_BIN="$(QEMU)" ./scripts/qemu_smoke.sh "$(KERNEL_ELF)"
+
+qemu-smoke: test-smoke
 
 qemu-gfx-test: $(KERNEL_ELF) scripts/run_qemu.sh
 	QEMU_BIN="$(QEMU)" ./scripts/run_qemu.sh "$(KERNEL_ELF)" "GFX: framebuffer initialized"

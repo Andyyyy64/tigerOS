@@ -25,13 +25,14 @@ Build outputs:
 ## Smoke Boot Test
 
 ```sh
-make qemu-smoke
+make test-smoke
 ```
 
-The smoke test runs `scripts/run_qemu.sh`, boots the kernel on QEMU `virt`, and checks for:
+The smoke test runs `scripts/qemu_smoke.sh`, boots the kernel on QEMU `virt`, and checks for:
 
 ```text
 BOOT: kernel entry
+TRAP_TEST: handled (or TICK: periodic interrupt)
 ```
 
 ## Trap Handler Test
