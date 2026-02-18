@@ -7,13 +7,19 @@ OBJDUMP := $(CROSS_COMPILE)objdump
 
 QEMU ?= qemu-system-riscv64
 TIMEOUT_BIN ?= timeout
+HOST_CC ?= cc
 BUILD_DIR := build
 KERNEL_ELF := $(BUILD_DIR)/kernel.elf
 KERNEL_BIN := $(BUILD_DIR)/kernel.bin
+FS_BUILD_DIR := $(BUILD_DIR)/fs
+FS_TEST_BIN := $(FS_BUILD_DIR)/fs_rw_test
+FS_MKFS_BIN := $(FS_BUILD_DIR)/mkfs_otfs
+FS_TEST_IMAGE := $(FS_BUILD_DIR)/qemu_fs_rw.img
 
 CFLAGS := -march=rv64imac -mabi=lp64 -mcmodel=medany -ffreestanding -fno-pic -O2 -g0 -Wall -Wextra -Werror
 ASFLAGS := $(CFLAGS)
 LDFLAGS := -nostdlib -nostartfiles -Wl,--build-id=none -Wl,-T,arch/riscv/linker.ld -Wl,-Map,$(BUILD_DIR)/kernel.map
+HOST_CFLAGS := -std=c11 -O2 -g0 -Wall -Wextra -Werror
 
 SRCS_C := \
 	drivers/uart/uart.c \
@@ -25,7 +31,7 @@ OBJS := \
 	$(patsubst %.c,$(BUILD_DIR)/%.o,$(SRCS_C)) \
 	$(patsubst %.S,$(BUILD_DIR)/%.o,$(SRCS_S))
 
-.PHONY: all clean qemu-smoke qemu-serial-echo-test
+.PHONY: all clean qemu-smoke qemu-serial-echo-test qemu-fs-rw-test
 
 all: $(KERNEL_ELF) $(KERNEL_BIN)
 
@@ -44,6 +50,14 @@ $(KERNEL_ELF): $(OBJS) arch/riscv/linker.ld
 
 $(KERNEL_BIN): $(KERNEL_ELF)
 	$(OBJCOPY) -O binary "$<" "$@"
+
+$(FS_TEST_BIN): fs/fs_rw_test.c fs/otfs.c include/fs.h
+	@mkdir -p "$(FS_BUILD_DIR)"
+	$(HOST_CC) $(HOST_CFLAGS) -Iinclude fs/fs_rw_test.c fs/otfs.c -o "$@"
+
+$(FS_MKFS_BIN): fs/mkfs_otfs.c fs/otfs.c include/fs.h
+	@mkdir -p "$(FS_BUILD_DIR)"
+	$(HOST_CC) $(HOST_CFLAGS) -Iinclude fs/mkfs_otfs.c fs/otfs.c -o "$@"
 
 qemu-smoke: $(KERNEL_ELF) scripts/run_qemu.sh
 	QEMU_BIN="$(QEMU)" ./scripts/run_qemu.sh "$(KERNEL_ELF)" "BOOT: kernel entry"
@@ -67,6 +81,10 @@ qemu-serial-echo-test: $(KERNEL_ELF)
 	printf '%s\n' "$$OUTPUT"; \
 	printf '%s\n' "$$OUTPUT" | grep -F "BOOT: kernel entry" >/dev/null; \
 	printf '%s\n' "$$OUTPUT" | grep -F "echo: $$TEST_LINE" >/dev/null
+
+qemu-fs-rw-test: $(FS_TEST_BIN) $(FS_MKFS_BIN) scripts/gen_fs_image.sh
+	./scripts/gen_fs_image.sh "$(FS_TEST_IMAGE)" "$(FS_MKFS_BIN)"
+	"$(FS_TEST_BIN)" "$(FS_TEST_IMAGE)"
 
 clean:
 	rm -rf "$(BUILD_DIR)"
