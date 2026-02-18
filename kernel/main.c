@@ -21,9 +21,9 @@ void kernel_main(void) {
   char line[128];
 
   console_init();
-  trap_init();
   mm_init();
   line_io_write("BOOT: kernel entry\n");
+  trap_init();
   line_io_write("console: line io ready\n");
   trap_test_trigger();
 

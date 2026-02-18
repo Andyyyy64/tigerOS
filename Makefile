@@ -114,6 +114,7 @@ qemu-trap-test: $(KERNEL_ELF)
 			2>&1 || true \
 	)"; \
 	printf '%s\n' "$$OUTPUT"; \
+	printf '%s\n' "$$OUTPUT" | grep -F "BOOT: kernel entry" >/dev/null; \
 	printf '%s\n' "$$OUTPUT" | grep -F "TRAP_TEST: mcause=0x0000000000000003 mepc=0x" >/dev/null; \
 	printf '%s\n' "$$OUTPUT" | grep -F "TRAP_TEST: resumed" >/dev/null
 
