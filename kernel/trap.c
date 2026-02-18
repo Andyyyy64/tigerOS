@@ -12,6 +12,9 @@ enum {
 
 extern void trap_vector(void);
 
+static volatile bool trap_test_armed;
+static volatile bool trap_test_passed;
+
 static inline void csr_write_stvec(uint64_t value) {
   __asm__ volatile("csrw stvec, %0" : : "r"(value));
 }
@@ -55,6 +58,11 @@ static void trap_halt(void) {
 static bool trap_dispatch_exception(struct trap_frame *frame, uint64_t code) {
   switch (code) {
     case MCAUSE_EXCEPTION_BREAKPOINT:
+      if (!trap_test_armed) {
+        return false;
+      }
+      trap_test_armed = false;
+      trap_test_passed = true;
       console_write("TRAP_TEST: mcause=");
       console_write_hex_u64(frame->mcause);
       console_write(" mepc=");
@@ -75,9 +83,19 @@ void trap_init(void) {
 }
 
 void trap_test_trigger(void) {
+  trap_test_armed = true;
+  trap_test_passed = false;
+
   console_write("TRAP_TEST: trigger\n");
   __asm__ volatile("ebreak");
-  console_write("TRAP_TEST: resumed\n");
+
+  if (trap_test_passed) {
+    console_write("TRAP_TEST: handled\n");
+    return;
+  }
+
+  console_write("TRAP_TEST: failed\n");
+  trap_halt();
 }
 
 void trap_handle(struct trap_frame *frame) {

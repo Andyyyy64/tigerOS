@@ -109,6 +109,10 @@ qemu-serial-echo-test: $(KERNEL_ELF)
 	printf '%s\n' "$$OUTPUT" | grep -F "BOOT: kernel entry" >/dev/null; \
 	printf '%s\n' "$$OUTPUT" | grep -F "echo: $$TEST_LINE" >/dev/null
 
+qemu-fs-rw-test: $(FS_TEST_BIN) $(FS_MKFS_BIN) scripts/gen_fs_image.sh
+	./scripts/gen_fs_image.sh "$(FS_TEST_IMAGE)" "$(FS_MKFS_BIN)"
+	"$(FS_TEST_BIN)" "$(FS_TEST_IMAGE)"
+
 qemu-trap-test: $(KERNEL_ELF)
 	@set -eu; \
 	OUTPUT="$$( \
@@ -126,11 +130,7 @@ qemu-trap-test: $(KERNEL_ELF)
 	printf '%s\n' "$$OUTPUT"; \
 	printf '%s\n' "$$OUTPUT" | grep -F "BOOT: kernel entry" >/dev/null; \
 	printf '%s\n' "$$OUTPUT" | grep -F "TRAP_TEST: mcause=0x0000000000000003 mepc=0x" >/dev/null; \
-	printf '%s\n' "$$OUTPUT" | grep -F "TRAP_TEST: resumed" >/dev/null
-
-qemu-fs-rw-test: $(FS_TEST_BIN) $(FS_MKFS_BIN) scripts/gen_fs_image.sh
-	./scripts/gen_fs_image.sh "$(FS_TEST_IMAGE)" "$(FS_MKFS_BIN)"
-	"$(FS_TEST_BIN)" "$(FS_TEST_IMAGE)"
+	printf '%s\n' "$$OUTPUT" | grep -F "TRAP_TEST: handled" >/dev/null
 
 $(TEST_PAGE_ALLOC_BIN): $(TEST_PAGE_ALLOC_SRCS) include/page_alloc.h
 	@mkdir -p "$(BUILD_DIR)"

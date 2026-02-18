@@ -92,5 +92,4 @@ trap_vector:
 	ld sp, TRAP_FRAME_SP(sp)
 
 	sret
-
 .size trap_vector, . - trap_vector
