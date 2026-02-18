@@ -30,11 +30,61 @@ static uint32_t fnv1a32_pixels(const volatile uint32_t *pixels, uint32_t pixel_c
   return hash;
 }
 
+static uint32_t hash_title(const char *title) {
+  uint32_t hash = 2166136261u;
+  uint32_t i;
+
+  if (title == (const char *)0) {
+    return hash;
+  }
+
+  for (i = 0u; title[i] != '\0'; ++i) {
+    hash ^= (uint32_t)(uint8_t)title[i];
+    hash *= 16777619u;
+  }
+
+  return hash;
+}
+
+static int window_has_valid_frame(const wm_window_t *window) {
+  if (window == (const wm_window_t *)0) {
+    return 0;
+  }
+
+  if (window->frame.width == 0u || window->frame.height == 0u) {
+    return 0;
+  }
+
+  return 1;
+}
+
+static int mul_u32_overflow(uint32_t a, uint32_t b, uint32_t *out) {
+  uint32_t product;
+
+  if (out == (uint32_t *)0) {
+    return 1;
+  }
+
+  if (a == 0u || b == 0u) {
+    *out = 0u;
+    return 0;
+  }
+
+  product = a * b;
+  if ((product / a) != b) {
+    return 1;
+  }
+
+  *out = product;
+  return 0;
+}
+
 static void wm_draw_window(const wm_window_t *window) {
   wm_rect_t title_bar;
   wm_rect_t content;
+  uint32_t title_hash;
 
-  if (window == (const wm_window_t *)0 || window->frame.width == 0u || window->frame.height == 0u) {
+  if (!window_has_valid_frame(window)) {
     return;
   }
 
@@ -51,6 +101,16 @@ static void wm_draw_window(const wm_window_t *window) {
   if (content.width != 0u && content.height != 0u) {
     framebuffer_fill_rect(content.x, content.y, content.width, content.height, window->style.content_color);
   }
+
+  if (title_bar.width > 8u && title_bar.height > 4u) {
+    uint32_t accent_width;
+    uint32_t accent_color;
+
+    title_hash = hash_title(window->title);
+    accent_width = 8u + (title_hash % (title_bar.width - 8u));
+    accent_color = 0x00202020u | (title_hash & 0x000f0f0fu);
+    framebuffer_fill_rect(title_bar.x + 4u, title_bar.y + 4u, accent_width - 4u, 1u, accent_color);
+  }
 }
 
 int wm_compositor_reset(uint32_t background_color) {
@@ -61,7 +121,7 @@ int wm_compositor_reset(uint32_t background_color) {
 }
 
 int wm_compositor_add_window(const wm_window_t *window) {
-  if (window == (const wm_window_t *)0 || window->frame.width == 0u || window->frame.height == 0u) {
+  if (!window_has_valid_frame(window)) {
     return -1;
   }
 
@@ -105,9 +165,9 @@ const wm_window_t *wm_compositor_active_window(void) { return g_scene.active_win
 
 uint32_t wm_compositor_render(void) {
   const struct framebuffer_info *fb;
+  uint32_t pixel_count;
   uint32_t i;
   uint32_t count;
-  uint32_t pixel_count;
 
   fb = framebuffer_get_info();
   if (fb == (const struct framebuffer_info *)0 || fb->pixels == (volatile uint32_t *)0 ||
@@ -115,16 +175,15 @@ uint32_t wm_compositor_render(void) {
     return 0u;
   }
 
-  if (fb->height > (UINT32_MAX / fb->stride)) {
-    return 0u;
-  }
-  pixel_count = fb->height * fb->stride;
-
   framebuffer_fill_rect(0u, 0u, fb->width, fb->height, g_scene.background_color);
 
   count = wm_layers_count(&g_scene.layers);
   for (i = 0u; i < count; ++i) {
     wm_draw_window(wm_layers_get_at(&g_scene.layers, i));
+  }
+
+  if (mul_u32_overflow(fb->height, fb->stride, &pixel_count) != 0) {
+    return 0u;
   }
 
   return fnv1a32_pixels(fb->pixels, pixel_count);
