@@ -42,12 +42,12 @@ make qemu-trap-test
 ```
 
 The trap test boots the kernel, triggers an `ebreak`, and verifies trap handling
-plus resume flow:
+flow:
 
 ```text
 BOOT: kernel entry
 TRAP_TEST: mcause=0x0000000000000003 mepc=0x...
-TRAP_TEST: resumed
+TRAP_TEST: handled
 ```
 
 Unexpected traps are logged with cause and fault context before halting:
