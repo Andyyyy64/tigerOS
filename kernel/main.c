@@ -5,6 +5,8 @@
 #include "line_io.h"
 #include "trap.h"
 #include "mm_init.h"
+#include "wm_compositor.h"
+#include "wm_window.h"
 
 static void console_put_hex32(uint32_t value) {
   static const char digits[] = "0123456789ABCDEF";
@@ -18,7 +20,9 @@ static void console_put_hex32(uint32_t value) {
 void kernel_main(void) {
   uint32_t marker_a;
   uint32_t marker_b;
+  uint32_t wm_marker;
   char line[128];
+  wm_window_t main_window;
 
   console_init();
   mm_init();
@@ -49,6 +53,20 @@ void kernel_main(void) {
     line_io_write(" != 0x");
     console_put_hex32(marker_b);
     line_io_write("\n");
+  }
+
+  wm_window_init(&main_window, "Terminal", 32u, 20u, 220u, 140u);
+  main_window.style.title_bar_color = 0x002f4f89u;
+  main_window.style.content_color = 0x00f8f9fbu;
+  wm_compositor_reset(0x00161c26u);
+
+  if (wm_compositor_add_window(&main_window) == 0) {
+    wm_marker = wm_compositor_render();
+    line_io_write("WM: single window composed marker 0x");
+    console_put_hex32(wm_marker);
+    line_io_write("\n");
+  } else {
+    line_io_write("WM: single window compose failed\n");
   }
 
   for (;;) {
