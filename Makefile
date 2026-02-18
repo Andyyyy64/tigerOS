@@ -30,6 +30,10 @@ OBJS := \
 	$(patsubst %.S,$(BUILD_DIR)/%.o,$(SRCS_S))
 
 TEST_PAGE_ALLOC_BIN := $(BUILD_DIR)/test-page-alloc
+TEST_PAGE_ALLOC_SRCS := \
+	tests/kernel/test_main.c \
+	tests/kernel/test_page_alloc.c \
+	kernel/mm/page_alloc.c
 
 .PHONY: all clean qemu-smoke qemu-serial-echo-test test-page-alloc
 
@@ -74,12 +78,12 @@ qemu-serial-echo-test: $(KERNEL_ELF)
 	printf '%s\n' "$$OUTPUT" | grep -F "BOOT: kernel entry" >/dev/null; \
 	printf '%s\n' "$$OUTPUT" | grep -F "echo: $$TEST_LINE" >/dev/null
 
-$(TEST_PAGE_ALLOC_BIN): kernel/mm/page_alloc_test.c kernel/mm/page_alloc.c include/page_alloc.h
+$(TEST_PAGE_ALLOC_BIN): $(TEST_PAGE_ALLOC_SRCS) include/page_alloc.h
 	@mkdir -p "$(BUILD_DIR)"
-	$(HOST_CC) $(HOST_CFLAGS) -Iinclude kernel/mm/page_alloc_test.c kernel/mm/page_alloc.c -o "$@"
+	$(HOST_CC) $(HOST_CFLAGS) -Iinclude $(TEST_PAGE_ALLOC_SRCS) -o "$@"
 
-test-page-alloc: $(TEST_PAGE_ALLOC_BIN)
-	"$<"
+test-page-alloc: $(TEST_PAGE_ALLOC_BIN) scripts/run_unit_tests.sh
+	./scripts/run_unit_tests.sh "$(TEST_PAGE_ALLOC_BIN)"
 
 clean:
 	rm -rf "$(BUILD_DIR)"
