@@ -31,6 +31,8 @@ SRCS_C := \
 	kernel/input/keyboard_dispatch.c \
 	kernel/clock.c \
 	kernel/trap.c \
+	kernel/task/task.c \
+	kernel/sched/rr.c \
 	kernel/mm/init.c \
 	kernel/mm/page_alloc.c \
 	kernel/input/event_queue.c \
@@ -56,7 +58,7 @@ TEST_PAGE_ALLOC_SRCS := \
 	tests/kernel/test_page_alloc.c \
 	kernel/mm/page_alloc.c
 
-.PHONY: all clean qemu-smoke qemu-gfx-test qemu-wm-single-test qemu-wm-overlap-test qemu-keyboard-focus-test qemu-mouse-test qemu-serial-echo-test qemu-trap-test qemu-timer-test qemu-fs-rw-test test-page-alloc test-fs-dir
+.PHONY: all clean qemu-smoke qemu-gfx-test qemu-wm-single-test qemu-wm-overlap-test qemu-keyboard-focus-test qemu-mouse-test qemu-serial-echo-test qemu-trap-test qemu-timer-test qemu-sched-test qemu-fs-rw-test test-page-alloc test-fs-dir
 
 all: $(KERNEL_ELF) $(KERNEL_BIN)
 
@@ -167,6 +169,28 @@ qemu-timer-test: $(KERNEL_ELF)
 	printf '%s\n' "$$OUTPUT"; \
 	printf '%s\n' "$$OUTPUT" | grep -F "BOOT: kernel entry" >/dev/null; \
 	printf '%s\n' "$$OUTPUT" | grep -F "TICK: periodic interrupt" >/dev/null
+
+qemu-sched-test: $(KERNEL_ELF)
+	@set -eu; \
+	OUTPUT="$$( \
+		"$(TIMEOUT_BIN)" 6s "$(QEMU)" \
+			-machine virt \
+			-cpu rv64 \
+			-m 128M \
+			-smp 1 \
+			-nographic \
+			-monitor none \
+			-serial stdio \
+			-kernel "$(KERNEL_ELF)" \
+			2>&1 || true \
+	)"; \
+	printf '%s\n' "$$OUTPUT"; \
+	printf '%s\n' "$$OUTPUT" | grep -F "SCHED: policy=round-robin runnable=2" >/dev/null; \
+	printf '%s\n' "$$OUTPUT" | grep -F "SCHED: switch 1 -> 2" >/dev/null; \
+	printf '%s\n' "$$OUTPUT" | grep -F "SCHED: switch 2 -> 1" >/dev/null; \
+	printf '%s\n' "$$OUTPUT" | grep -F "TASK: 1 running" >/dev/null; \
+	printf '%s\n' "$$OUTPUT" | grep -F "TASK: 2 running" >/dev/null; \
+	printf '%s\n' "$$OUTPUT" | grep -F "SCHED_TEST: alternating tasks confirmed" >/dev/null
 
 $(TEST_PAGE_ALLOC_BIN): $(TEST_PAGE_ALLOC_SRCS) include/page_alloc.h
 	@mkdir -p "$(BUILD_DIR)"
