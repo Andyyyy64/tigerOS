@@ -1,7 +1,54 @@
 #include <stddef.h>
-#include <string.h>
 
 #include "fs_dir.h"
+
+static void dir_memzero(void *dst, size_t len) {
+  size_t i = 0u;
+  unsigned char *p = (unsigned char *)dst;
+  while (i < len) {
+    p[i] = 0u;
+    ++i;
+  }
+}
+
+static void dir_copy(char *dst, const char *src, size_t len) {
+  size_t i = 0u;
+  while (i < len) {
+    dst[i] = src[i];
+    ++i;
+  }
+}
+
+static size_t dir_strlen(const char *s) {
+  size_t len = 0u;
+  if (s == NULL) {
+    return 0u;
+  }
+  while (s[len] != '\0') {
+    ++len;
+  }
+  return len;
+}
+
+static int dir_strcmp(const char *a, const char *b) {
+  size_t i = 0u;
+
+  if (a == NULL || b == NULL) {
+    if (a == b) {
+      return 0;
+    }
+    return (a == NULL) ? -1 : 1;
+  }
+
+  while (a[i] != '\0' && b[i] != '\0') {
+    if (a[i] != b[i]) {
+      return (int)((unsigned char)a[i] - (unsigned char)b[i]);
+    }
+    ++i;
+  }
+
+  return (int)((unsigned char)a[i] - (unsigned char)b[i]);
+}
 
 static int valid_tree(const fs_dir_tree_t *tree) {
   if (tree == NULL || tree->node_count == 0u || tree->node_count > FS_DIR_MAX_NODES ||
@@ -15,7 +62,7 @@ static int valid_tree(const fs_dir_tree_t *tree) {
 static int find_child(const fs_dir_tree_t *tree, int parent_index, const char *name) {
   int cur = tree->nodes[parent_index].first_child;
   while (cur >= 0) {
-    if (tree->nodes[cur].used != 0u && strcmp(tree->nodes[cur].name, name) == 0) {
+    if (tree->nodes[cur].used != 0u && dir_strcmp(tree->nodes[cur].name, name) == 0) {
       return cur;
     }
     cur = tree->nodes[cur].next_sibling;
@@ -30,7 +77,7 @@ static int alloc_node(fs_dir_tree_t *tree) {
   }
 
   idx = (int)tree->node_count;
-  memset(&tree->nodes[idx], 0, sizeof(tree->nodes[idx]));
+  dir_memzero(&tree->nodes[idx], sizeof(tree->nodes[idx]));
   tree->nodes[idx].used = 1u;
   tree->nodes[idx].parent = -1;
   tree->nodes[idx].first_child = -1;
@@ -43,7 +90,7 @@ static int insert_child_sorted(fs_dir_tree_t *tree, int parent_index, int child_
   int prev = -1;
   int cur = tree->nodes[parent_index].first_child;
 
-  while (cur >= 0 && strcmp(tree->nodes[cur].name, tree->nodes[child_index].name) < 0) {
+  while (cur >= 0 && dir_strcmp(tree->nodes[cur].name, tree->nodes[child_index].name) < 0) {
     prev = cur;
     cur = tree->nodes[cur].next_sibling;
   }
@@ -101,11 +148,11 @@ static int path_from_index(const fs_dir_tree_t *tree, int index, char *out, size
 
     depth--;
     name = tree->nodes[stack[depth]].name;
-    name_len = strlen(name);
+    name_len = dir_strlen(name);
     if (name_len == 0u || name_len > FS_DIR_NAME_MAX || out_used + name_len + 1u > out_len) {
       return -1;
     }
-    memcpy(&out[out_used], name, name_len);
+    dir_copy(&out[out_used], name, name_len);
     out_used += name_len;
 
     if (depth > 0u) {
@@ -156,7 +203,7 @@ static int lookup_absolute(const fs_dir_tree_t *tree, const char *absolute_path)
     if (len == 0u || len > FS_DIR_NAME_MAX) {
       return -1;
     }
-    memcpy(name, &absolute_path[start], len);
+    dir_copy(name, &absolute_path[start], len);
     name[len] = '\0';
 
     child = find_child(tree, cur, name);
@@ -185,7 +232,7 @@ static int mkdir_internal(fs_dir_tree_t *tree, const char *path, int create_pare
   if (resolve_path(tree, path, absolute, sizeof(absolute)) != 0) {
     return -1;
   }
-  if (strcmp(absolute, "/") == 0) {
+  if (dir_strcmp(absolute, "/") == 0) {
     return -1;
   }
 
@@ -205,7 +252,7 @@ static int mkdir_internal(fs_dir_tree_t *tree, const char *path, int create_pare
     if (len == 0u || len > FS_DIR_NAME_MAX) {
       return -1;
     }
-    memcpy(name, &absolute[start], len);
+    dir_copy(name, &absolute[start], len);
     name[len] = '\0';
 
     child = find_child(tree, cur, name);
@@ -227,7 +274,7 @@ static int mkdir_internal(fs_dir_tree_t *tree, const char *path, int create_pare
         return -1;
       }
 
-      memcpy(tree->nodes[new_node].name, name, len + 1u);
+      dir_copy(tree->nodes[new_node].name, name, len + 1u);
       tree->nodes[new_node].parent = parent;
       tree->nodes[new_node].first_child = -1;
       tree->nodes[new_node].next_sibling = -1;
@@ -252,7 +299,7 @@ void fs_dir_init(fs_dir_tree_t *tree) {
     return;
   }
 
-  memset(tree, 0, sizeof(*tree));
+  dir_memzero(tree, sizeof(*tree));
   tree->node_count = 1u;
   tree->cwd_index = 0;
   tree->nodes[0].used = 1u;
@@ -318,7 +365,7 @@ int fs_dir_readdir(const fs_dir_tree_t *tree,
     }
 
     if (entries != NULL && count < max_entries) {
-      memcpy(entries[count].name, tree->nodes[cur].name, FS_DIR_NAME_MAX + 1u);
+      dir_copy(entries[count].name, tree->nodes[cur].name, FS_DIR_NAME_MAX + 1u);
     } else if (entries != NULL) {
       overflow = 1;
     }

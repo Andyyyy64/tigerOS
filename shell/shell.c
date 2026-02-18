@@ -1,6 +1,7 @@
 #include "line_io.h"
 #include "shell.h"
 #include "shell_builtins.h"
+#include "shell_builtins_fs.h"
 #include "shell_parser.h"
 
 enum {
@@ -26,6 +27,8 @@ void shell_run(void) {
   char line[SHELL_LINE_BUFFER_SIZE];
   char raw_line[SHELL_LINE_BUFFER_SIZE];
   char *argv[SHELL_ARGV_CAP];
+
+  shell_builtins_fs_init();
 
   for (;;) {
     int line_len;
