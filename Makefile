@@ -23,11 +23,11 @@ LDFLAGS := -nostdlib -nostartfiles -Wl,--build-id=none -Wl,-T,arch/riscv/linker.
 HOST_CFLAGS ?= -std=c11 -O2 -g0 -Wall -Wextra -Werror
 
 SRCS_C := \
+	arch/riscv/timer.c \
 	drivers/uart/uart.c \
 	drivers/input/mouse.c \
-	arch/riscv/timer.c \
-	kernel/clock.c \
 	kernel/console.c \
+	kernel/clock.c \
 	kernel/trap.c \
 	kernel/mm/init.c \
 	kernel/mm/page_alloc.c \
@@ -161,7 +161,7 @@ qemu-timer-test: $(KERNEL_ELF)
 	)"; \
 	printf '%s\n' "$$OUTPUT"; \
 	printf '%s\n' "$$OUTPUT" | grep -F "BOOT: kernel entry" >/dev/null; \
-	printf '%s\n' "$$OUTPUT" | grep -F "TICK: timer interrupt" >/dev/null
+	printf '%s\n' "$$OUTPUT" | grep -F "TICK: periodic interrupt" >/dev/null
 
 $(TEST_PAGE_ALLOC_BIN): $(TEST_PAGE_ALLOC_SRCS) include/page_alloc.h
 	@mkdir -p "$(BUILD_DIR)"
