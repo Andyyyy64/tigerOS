@@ -57,18 +57,6 @@ static void trap_halt(void) {
   }
 }
 
-static bool trap_dispatch_interrupt(struct trap_frame *frame, uint64_t code) {
-  (void)frame;
-
-  switch (code) {
-    case MCAUSE_INTERRUPT_SUPERVISOR_TIMER:
-      clock_handle_timer_interrupt();
-      return true;
-    default:
-      return false;
-  }
-}
-
 static bool trap_dispatch_exception(struct trap_frame *frame, uint64_t code) {
   switch (code) {
     case MCAUSE_EXCEPTION_BREAKPOINT:
@@ -83,6 +71,16 @@ static bool trap_dispatch_exception(struct trap_frame *frame, uint64_t code) {
       console_write_hex_u64(frame->mepc);
       console_write("\n");
       frame->mepc += trap_instruction_len(frame->mepc);
+      return true;
+    default:
+      return false;
+  }
+}
+
+static bool trap_dispatch_interrupt(uint64_t code) {
+  switch (code) {
+    case MCAUSE_INTERRUPT_SUPERVISOR_TIMER:
+      clock_handle_timer_interrupt();
       return true;
     default:
       return false;
@@ -115,12 +113,13 @@ void trap_test_trigger(void) {
 void trap_handle(struct trap_frame *frame) {
   uint64_t cause = frame->mcause;
   uint64_t code = trap_cause_code(cause);
+  bool is_interrupt = trap_is_interrupt(cause);
 
-  if (trap_is_interrupt(cause) && trap_dispatch_interrupt(frame, code)) {
+  if (is_interrupt && trap_dispatch_interrupt(code)) {
     return;
   }
 
-  if (!trap_is_interrupt(cause) && trap_dispatch_exception(frame, code)) {
+  if (!is_interrupt && trap_dispatch_exception(frame, code)) {
     return;
   }
 

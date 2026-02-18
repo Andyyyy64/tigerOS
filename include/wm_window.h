@@ -26,6 +26,7 @@ typedef struct wm_window {
 
 void wm_window_init(wm_window_t *window, const char *title, uint32_t x, uint32_t y, uint32_t width,
                     uint32_t height);
+int wm_window_is_valid(const wm_window_t *window);
 wm_rect_t wm_window_title_bar_rect(const wm_window_t *window);
 wm_rect_t wm_window_content_rect(const wm_window_t *window);
 

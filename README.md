@@ -75,7 +75,11 @@ GFX: deterministic marker 0x...
 make qemu-wm-single-test
 ```
 
-Boots the kernel and validates single-window composition output:
+Boots the kernel and validates initial window creation/composition behavior:
+
+- initializes a window frame/title with default style values
+- draws border, title bar, and content regions through the compositor
+- emits a deterministic composition marker for verification
 
 ```text
 WM: single window composed marker 0x...

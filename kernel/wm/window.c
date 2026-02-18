@@ -42,7 +42,11 @@ void wm_window_init(wm_window_t *window, const char *title, uint32_t x, uint32_t
     return;
   }
 
-  window->title = title;
+  if (title == (const char *)0) {
+    window->title = "";
+  } else {
+    window->title = title;
+  }
   window->frame.x = x;
   window->frame.y = y;
   window->frame.width = width;
@@ -53,6 +57,31 @@ void wm_window_init(wm_window_t *window, const char *title, uint32_t x, uint32_t
   window->style.content_color = 0x00f2f4f8u;
   window->style.border_thickness = WM_DEFAULT_BORDER_THICKNESS;
   window->style.title_bar_height = WM_DEFAULT_TITLE_BAR_HEIGHT;
+}
+
+int wm_window_is_valid(const wm_window_t *window) {
+  wm_rect_t title_bar;
+  wm_rect_t content;
+
+  if (window == (const wm_window_t *)0) {
+    return 0;
+  }
+
+  if (window->frame.width == 0u || window->frame.height == 0u) {
+    return 0;
+  }
+
+  title_bar = wm_window_title_bar_rect(window);
+  if (title_bar.width == 0u || title_bar.height == 0u) {
+    return 0;
+  }
+
+  content = wm_window_content_rect(window);
+  if (content.width == 0u || content.height == 0u) {
+    return 0;
+  }
+
+  return 1;
 }
 
 wm_rect_t wm_window_title_bar_rect(const wm_window_t *window) {
