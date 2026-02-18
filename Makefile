@@ -42,6 +42,9 @@ SRCS_C := \
 	shell/line_io.c \
 	shell/shell.c \
 	shell/parser.c \
+	shell/parser_redir.c \
+	shell/fd_table.c \
+	shell/exec_pipeline.c \
 	shell/builtins_basic.c \
 	shell/builtins_fs.c \
 	shell/path_state.c \
@@ -67,7 +70,7 @@ TEST_PAGE_ALLOC_SRCS := \
 	tests/kernel/test_page_alloc.c \
 	kernel/mm/page_alloc.c
 
-.PHONY: all clean test-smoke qemu-smoke qemu-gfx-test qemu-wm-single-test qemu-wm-overlap-test qemu-keyboard-focus-test qemu-mouse-test qemu-app-window-test qemu-serial-echo-test qemu-shell-basic-test qemu-shell-fs-test qemu-trap-test qemu-timer-test qemu-sched-test qemu-fs-rw-test test-page-alloc test-fs-dir
+.PHONY: all clean test-smoke qemu-smoke qemu-gfx-test qemu-wm-single-test qemu-wm-overlap-test qemu-keyboard-focus-test qemu-mouse-test qemu-app-window-test qemu-serial-echo-test qemu-shell-basic-test qemu-shell-fs-test qemu-shell-pipe-test qemu-trap-test qemu-timer-test qemu-sched-test qemu-fs-rw-test test-page-alloc test-fs-dir
 
 all: $(KERNEL_ELF) $(KERNEL_BIN)
 
@@ -235,6 +238,47 @@ qemu-shell-fs-test: $(KERNEL_ELF)
 	printf '%s\n' "$$OUTPUT" | grep -F "projects/" >/dev/null; \
 	printf '%s\n' "$$OUTPUT" | grep -F "openTiger shell filesystem" >/dev/null; \
 	printf '%s\n' "$$OUTPUT" | grep -F "cd: no such directory" >/dev/null
+
+qemu-shell-pipe-test: $(KERNEL_ELF)
+	@set -eu; \
+	OUTPUT="$$( \
+		{ \
+			sleep 1; \
+			printf '%s\r\n' "echo alpha > /tmp/out.txt"; \
+			sleep 1; \
+			printf '%s\r\n' "cat /tmp/out.txt"; \
+			sleep 1; \
+			printf '%s\r\n' "echo beta >> /tmp/out.txt"; \
+			sleep 1; \
+			printf '%s\r\n' "cat /tmp/out.txt"; \
+			sleep 1; \
+			printf '%s\r\n' "echo piped text | cat"; \
+			sleep 1; \
+			printf '%s\r\n' "echo sink pipe | cat > /tmp/piped.txt"; \
+			sleep 1; \
+			printf '%s\r\n' "cat /tmp/piped.txt"; \
+			sleep 1; \
+			printf '%s\r\n' "ls /tmp"; \
+		} | \
+		"$(TIMEOUT_BIN)" 18s "$(QEMU)" \
+			-machine virt \
+			-cpu rv64 \
+			-m 128M \
+			-smp 1 \
+			-nographic \
+			-monitor none \
+			-serial stdio \
+			-kernel "$(KERNEL_ELF)" \
+			2>&1 || true \
+	)"; \
+	printf '%s\n' "$$OUTPUT"; \
+	printf '%s\n' "$$OUTPUT" | grep -F "BOOT: kernel entry" >/dev/null; \
+	printf '%s\n' "$$OUTPUT" | grep -F "echo: alpha" >/dev/null; \
+	printf '%s\n' "$$OUTPUT" | grep -F "echo: beta" >/dev/null; \
+	printf '%s\n' "$$OUTPUT" | grep -F "echo: piped text" >/dev/null; \
+	printf '%s\n' "$$OUTPUT" | grep -F "echo: sink pipe" >/dev/null; \
+	printf '%s\n' "$$OUTPUT" | grep -F "out.txt" >/dev/null; \
+	printf '%s\n' "$$OUTPUT" | grep -F "piped.txt" >/dev/null
 
 qemu-fs-rw-test: $(FS_TEST_BIN) $(FS_MKFS_BIN) scripts/gen_fs_image.sh
 	./scripts/gen_fs_image.sh "$(FS_TEST_IMAGE)" "$(FS_MKFS_BIN)"

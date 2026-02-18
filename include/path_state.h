@@ -24,5 +24,6 @@ int path_state_ls(const char *path,
                   size_t max_entries,
                   size_t *out_count);
 int path_state_cat(const char *path, const char **out_contents);
+int path_state_write_file(const char *path, const char *content, size_t content_len, int append);
 
 #endif
