@@ -40,6 +40,9 @@ SRCS_C := \
 	apps/demo_window_app.c \
 	kernel/main.c \
 	shell/line_io.c \
+	shell/shell.c \
+	shell/parser.c \
+	shell/builtins_basic.c \
 	kernel/gfx/framebuffer.c \
 	kernel/wm/window.c \
 	kernel/wm/layers.c \
@@ -60,7 +63,7 @@ TEST_PAGE_ALLOC_SRCS := \
 	tests/kernel/test_page_alloc.c \
 	kernel/mm/page_alloc.c
 
-.PHONY: all clean test-smoke qemu-smoke qemu-gfx-test qemu-wm-single-test qemu-wm-overlap-test qemu-keyboard-focus-test qemu-mouse-test qemu-app-window-test qemu-serial-echo-test qemu-trap-test qemu-timer-test qemu-sched-test qemu-fs-rw-test test-page-alloc test-fs-dir
+.PHONY: all clean test-smoke qemu-smoke qemu-gfx-test qemu-wm-single-test qemu-wm-overlap-test qemu-keyboard-focus-test qemu-mouse-test qemu-app-window-test qemu-serial-echo-test qemu-shell-basic-test qemu-trap-test qemu-timer-test qemu-sched-test qemu-fs-rw-test test-page-alloc test-fs-dir
 
 all: $(KERNEL_ELF) $(KERNEL_BIN)
 
@@ -135,6 +138,37 @@ qemu-serial-echo-test: $(KERNEL_ELF)
 	printf '%s\n' "$$OUTPUT"; \
 	printf '%s\n' "$$OUTPUT" | grep -F "BOOT: kernel entry" >/dev/null; \
 	printf '%s\n' "$$OUTPUT" | grep -F "echo: $$TEST_LINE" >/dev/null
+
+qemu-shell-basic-test: $(KERNEL_ELF)
+	@set -eu; \
+	OUTPUT="$$( \
+		{ \
+			sleep 1; \
+			printf '%s\r\n' "help"; \
+			sleep 1; \
+			printf '%s\r\n' "echo shell basic"; \
+			sleep 1; \
+			printf '%s\r\n' "meminfo"; \
+		} | \
+		"$(TIMEOUT_BIN)" 8s "$(QEMU)" \
+			-machine virt \
+			-cpu rv64 \
+			-m 128M \
+			-smp 1 \
+			-nographic \
+			-monitor none \
+			-serial stdio \
+			-kernel "$(KERNEL_ELF)" \
+			2>&1 || true \
+	)"; \
+	printf '%s\n' "$$OUTPUT"; \
+	printf '%s\n' "$$OUTPUT" | grep -F "BOOT: kernel entry" >/dev/null; \
+	printf '%s\n' "$$OUTPUT" | grep -F "available commands:" >/dev/null; \
+	printf '%s\n' "$$OUTPUT" | grep -F "help - show this help" >/dev/null; \
+	printf '%s\n' "$$OUTPUT" | grep -F "echo - print arguments" >/dev/null; \
+	printf '%s\n' "$$OUTPUT" | grep -F "meminfo - show allocator usage" >/dev/null; \
+	printf '%s\n' "$$OUTPUT" | grep -F "echo: shell basic" >/dev/null; \
+	printf '%s\n' "$$OUTPUT" | grep -F "meminfo: range=0x" >/dev/null
 
 qemu-fs-rw-test: $(FS_TEST_BIN) $(FS_MKFS_BIN) scripts/gen_fs_image.sh
 	./scripts/gen_fs_image.sh "$(FS_TEST_IMAGE)" "$(FS_MKFS_BIN)"
