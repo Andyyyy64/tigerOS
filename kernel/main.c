@@ -5,36 +5,47 @@
 #include "line_io.h"
 #include "mm_init.h"
 
-static void line_io_write_hex32(uint32_t value) {
+static void console_put_hex32(uint32_t value) {
   static const char digits[] = "0123456789ABCDEF";
-  char out[11];
-  int i;
+  int shift;
 
-  out[0] = '0';
-  out[1] = 'x';
-  for (i = 0; i < 8; ++i) {
-    unsigned int shift = (unsigned int)(28 - (i * 4));
-    out[2 + i] = digits[(value >> shift) & 0xFu];
+  for (shift = 28; shift >= 0; shift -= 4) {
+    console_putc(digits[(value >> (uint32_t)shift) & 0x0fu]);
   }
-  out[10] = '\0';
-  line_io_write(out);
 }
 
 void kernel_main(void) {
+  uint32_t marker_a;
+  uint32_t marker_b;
   char line[128];
-  uint32_t marker;
 
   console_init();
   mm_init();
   line_io_write("BOOT: kernel entry\n");
   line_io_write("console: line io ready\n");
-  if (framebuffer_init()) {
-    marker = framebuffer_render_test_pattern();
-    line_io_write("GFX: pattern marker=");
-    line_io_write_hex32(marker);
+
+  if (framebuffer_init() != 0) {
+    line_io_write("GFX: framebuffer init failed\n");
+    for (;;) {
+      __asm__ volatile("wfi");
+    }
+  }
+
+  line_io_write("GFX: framebuffer initialized\n");
+
+  marker_a = framebuffer_render_test_pattern();
+  marker_b = framebuffer_render_test_pattern();
+
+  if (marker_a == marker_b) {
+    line_io_write("GFX: deterministic marker 0x");
+    console_put_hex32(marker_a);
     line_io_write("\n");
   } else {
-    line_io_write("GFX: framebuffer init failed\n");
+    line_io_write("GFX: marker mismatch 0x");
+    console_put_hex32(marker_a);
+    line_io_write(" != 0x");
+    console_put_hex32(marker_b);
+    line_io_write("\n");
   }
 
   for (;;) {
