@@ -59,6 +59,26 @@ Unexpected traps are logged with cause and fault context before halting:
 TRAP: unexpected mcause=0x... mepc=0x... mtval=0x...
 ```
 
+## Round-Robin Scheduler Test
+
+```sh
+make qemu-sched-test
+```
+
+The scheduler test boots the kernel, starts two runnable test tasks, and validates
+round-robin alternation on timer interrupts.
+
+Expected output includes:
+
+```text
+SCHED: policy=round-robin runnable=2
+SCHED: switch 1 -> 2
+SCHED: switch 2 -> 1
+TASK: 1 running
+TASK: 2 running
+SCHED_TEST: alternating tasks confirmed
+```
+
 ## Framebuffer Graphics Test
 
 ```sh
@@ -142,6 +162,24 @@ Expected output includes:
 
 ```text
 WM: keyboard focus routing marker 0x...
+```
+
+## Application Window API Demo Test
+
+```sh
+make qemu-app-window-test
+```
+
+Boots the kernel and validates the application-facing window API and callback dispatch path:
+
+- a demo task opens a window through `app_window_open`
+- synthetic mouse move/click input is emitted and dispatched through `app_window_dispatch_pending`
+- the demo app callback is invoked and a deterministic compositor marker is printed
+
+Expected output includes:
+
+```text
+APP: demo window callback marker 0x...
 ```
 
 ## UART Line I/O Echo Test
