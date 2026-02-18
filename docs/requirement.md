@@ -25,8 +25,8 @@ We want to develop an OS on RISC-V with a workflow that can be continuously driv
 
 ### Kernel Baseline
 
-- [ ] Kernel image builds successfully with the project's standard build command.
-- [ ] Running the image on QEMU reaches kernel entry and prints a boot banner to serial console.
+- [x] Kernel image builds successfully with the project's standard build command (`make`).
+- [x] Running the image on QEMU reaches kernel entry and prints a boot banner to serial console (`BOOT: kernel entry`).
 - [ ] UART console input/output works for at least line-based command input.
 - [ ] Trap/exception handler is wired and logs cause information on unexpected trap.
 - [ ] Timer interrupt is enabled and at least one periodic tick is observable in logs.
@@ -59,7 +59,7 @@ We want to develop an OS on RISC-V with a workflow that can be continuously driv
 
 ### Verification
 
-- [ ] The project has at least one automated smoke test that boots in QEMU and checks expected boot log markers.
+- [x] The project has at least one automated smoke test that boots in QEMU and checks expected boot log markers (`make qemu-smoke` checks `BOOT: kernel entry`).
 - [ ] Core kernel changes are covered by unit/integration tests where feasible, and all required checks pass.
 
 ## Scope
@@ -133,3 +133,8 @@ Use a milestone-first strategy:
 7. Multiple terminals
 8. Applications that create windows
 9. Smoke tests and docs
+
+Current bootstrap commands:
+
+- Build kernel artifacts: `make`
+- Run boot smoke test on QEMU: `make qemu-smoke`
