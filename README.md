@@ -47,20 +47,23 @@ BOOT: kernel entry
 echo: uart line echo test
 ```
 
-## Physical Page Allocator Test
+## Physical Page Allocator Unit Tests
 
 ```sh
 make test-page-alloc
 ```
 
-Runs host-side unit tests for the 4KiB physical page allocator in `kernel/mm/page_alloc.c`.
-The test covers range alignment during init, allocation/free behavior, ownership checks, and
-invalid free handling.
+Builds the host-side allocator unit test binary (`build/test-page-alloc`) and runs it through
+the unit test harness script (`scripts/run_unit_tests.sh`).
+
+The tests cover allocation exhaustion, double-free protection, free-then-reuse behavior, and
+page-range alignment assumptions.
 
 Expected output:
 
 ```text
-page_alloc tests passed
+page allocator unit tests passed
+all unit tests passed
 ```
 
 ## Useful Variables

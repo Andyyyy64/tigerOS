@@ -139,3 +139,4 @@ Current bootstrap commands:
 - Build kernel artifacts: `make`
 - Run boot smoke test on QEMU: `make qemu-smoke`
 - Run UART serial line echo test on QEMU: `make qemu-serial-echo-test`
+- Run physical page allocator unit tests: `make test-page-alloc`
