@@ -2,165 +2,102 @@
 
 #include "keyboard.h"
 #include "keyboard_dispatch.h"
-#include "wm_focus.h"
+#include "wm_compositor.h"
 #include "wm_layers.h"
 
-typedef struct keyboard_endpoint {
+typedef struct keyboard_binding {
   const wm_window_t *window;
-  keyboard_text_handler_t text_handler;
-  keyboard_control_handler_t control_handler;
-  void *ctx;
-} keyboard_endpoint_t;
+  uint32_t endpoint_id;
+} keyboard_binding_t;
 
-static keyboard_endpoint_t g_endpoints[WM_MAX_WINDOWS];
+typedef struct keyboard_dispatch_state {
+  keyboard_binding_t bindings[WM_MAX_WINDOWS];
+  uint32_t binding_count;
+  keyboard_dispatch_fn sink;
+} keyboard_dispatch_state_t;
 
-static int keyboard_event_is_control(keyboard_event_type_t type) {
-  return type == KEYBOARD_EVENT_BACKSPACE || type == KEYBOARD_EVENT_ENTER || type == KEYBOARD_EVENT_TAB ||
-         type == KEYBOARD_EVENT_ESCAPE;
-}
+static keyboard_dispatch_state_t g_keyboard_dispatch_state;
 
-static int keyboard_endpoint_find_index(const wm_window_t *window) {
+static keyboard_binding_t *find_binding(const wm_window_t *window) {
   uint32_t i;
 
   if (window == (const wm_window_t *)0) {
-    return -1;
+    return (keyboard_binding_t *)0;
   }
 
-  for (i = 0u; i < WM_MAX_WINDOWS; ++i) {
-    if (g_endpoints[i].window == window) {
-      return (int)i;
+  for (i = 0u; i < g_keyboard_dispatch_state.binding_count; ++i) {
+    if (g_keyboard_dispatch_state.bindings[i].window == window) {
+      return &g_keyboard_dispatch_state.bindings[i];
     }
   }
 
-  return -1;
+  return (keyboard_binding_t *)0;
 }
 
-static int keyboard_endpoint_allocate_index(void) {
-  uint32_t i;
+static void dispatch_to_focused_endpoint(const keyboard_event_t *event) {
+  const wm_window_t *focused_window;
+  keyboard_binding_t *binding;
 
-  for (i = 0u; i < WM_MAX_WINDOWS; ++i) {
-    if (g_endpoints[i].window == (const wm_window_t *)0) {
-      return (int)i;
-    }
+  if (event == (const keyboard_event_t *)0 || g_keyboard_dispatch_state.sink == (keyboard_dispatch_fn)0) {
+    return;
   }
 
-  return -1;
+  focused_window = wm_compositor_active_window();
+  binding = find_binding(focused_window);
+  if (binding == (keyboard_binding_t *)0) {
+    return;
+  }
+
+  g_keyboard_dispatch_state.sink(binding->endpoint_id, event);
 }
 
 void keyboard_dispatch_reset(void) {
   uint32_t i;
 
+  g_keyboard_dispatch_state.binding_count = 0u;
+  g_keyboard_dispatch_state.sink = (keyboard_dispatch_fn)0;
+
   for (i = 0u; i < WM_MAX_WINDOWS; ++i) {
-    g_endpoints[i].window = (const wm_window_t *)0;
-    g_endpoints[i].text_handler = (keyboard_text_handler_t)0;
-    g_endpoints[i].control_handler = (keyboard_control_handler_t)0;
-    g_endpoints[i].ctx = (void *)0;
+    g_keyboard_dispatch_state.bindings[i].window = (const wm_window_t *)0;
+    g_keyboard_dispatch_state.bindings[i].endpoint_id = 0u;
   }
-
-  keyboard_input_reset();
-  wm_focus_reset();
 }
 
-int keyboard_dispatch_register_endpoint(const wm_window_t *window, keyboard_text_handler_t text_handler,
-                                        keyboard_control_handler_t control_handler, void *ctx) {
-  int index;
+int keyboard_dispatch_register_window(const wm_window_t *window, uint32_t endpoint_id) {
+  keyboard_binding_t *binding;
 
-  if (window == (const wm_window_t *)0) {
+  if (window == (const wm_window_t *)0 || endpoint_id == 0u) {
     return -1;
   }
 
-  index = keyboard_endpoint_find_index(window);
-  if (index < 0) {
-    index = keyboard_endpoint_allocate_index();
+  binding = find_binding(window);
+  if (binding != (keyboard_binding_t *)0) {
+    binding->endpoint_id = endpoint_id;
+    return 0;
   }
 
-  if (index < 0) {
+  if (g_keyboard_dispatch_state.binding_count >= WM_MAX_WINDOWS) {
     return -1;
   }
 
-  g_endpoints[(uint32_t)index].window = window;
-  g_endpoints[(uint32_t)index].text_handler = text_handler;
-  g_endpoints[(uint32_t)index].control_handler = control_handler;
-  g_endpoints[(uint32_t)index].ctx = ctx;
+  g_keyboard_dispatch_state.bindings[g_keyboard_dispatch_state.binding_count].window = window;
+  g_keyboard_dispatch_state.bindings[g_keyboard_dispatch_state.binding_count].endpoint_id = endpoint_id;
+  g_keyboard_dispatch_state.binding_count += 1u;
   return 0;
 }
 
-int keyboard_dispatch_unregister_endpoint(const wm_window_t *window) {
-  int index = keyboard_endpoint_find_index(window);
-
-  if (index < 0) {
-    return -1;
-  }
-
-  g_endpoints[(uint32_t)index].window = (const wm_window_t *)0;
-  g_endpoints[(uint32_t)index].text_handler = (keyboard_text_handler_t)0;
-  g_endpoints[(uint32_t)index].control_handler = (keyboard_control_handler_t)0;
-  g_endpoints[(uint32_t)index].ctx = (void *)0;
-  (void)wm_focus_clear_if_active(window);
-  return 0;
+void keyboard_dispatch_set_sink(keyboard_dispatch_fn dispatch_fn) {
+  g_keyboard_dispatch_state.sink = dispatch_fn;
 }
 
-int keyboard_dispatch_route_event(const keyboard_event_t *event) {
-  const wm_window_t *focused_window;
-  int index;
-  keyboard_endpoint_t *endpoint;
-
-  if (event == (const keyboard_event_t *)0) {
-    return -1;
-  }
-
-  focused_window = wm_focus_active_window();
-  if (focused_window == (const wm_window_t *)0) {
-    return 0;
-  }
-
-  index = keyboard_endpoint_find_index(focused_window);
-  if (index < 0) {
-    return 0;
-  }
-
-  endpoint = &g_endpoints[(uint32_t)index];
-  if (wm_focus_is_active_window(endpoint->window) == 0) {
-    return 0;
-  }
-
-  if (event->type == KEYBOARD_EVENT_TEXT) {
-    if (endpoint->text_handler == (keyboard_text_handler_t)0 || event->text == '\0') {
-      return 0;
-    }
-
-    endpoint->text_handler(endpoint->window, event->text, endpoint->ctx);
-    return 1;
-  }
-
-  if (keyboard_event_is_control(event->type) == 0) {
-    return 0;
-  }
-
-  if (endpoint->control_handler == (keyboard_control_handler_t)0) {
-    return 0;
-  }
-
-  endpoint->control_handler(endpoint->window, event->type, endpoint->ctx);
-  return 1;
-}
-
-int keyboard_dispatch_route_input_byte(uint8_t byte) {
+uint32_t keyboard_dispatch_pending(void) {
   keyboard_event_t event;
+  uint32_t processed_count = 0u;
 
-  if (keyboard_event_from_byte(byte, &event) == 0) {
-    return 0;
+  while (keyboard_pop_event(&event) == 0) {
+    dispatch_to_focused_endpoint(&event);
+    processed_count += 1u;
   }
 
-  return keyboard_dispatch_route_event(&event);
-}
-
-int keyboard_dispatch_poll_and_route(void) {
-  keyboard_event_t event;
-
-  if (keyboard_poll_event(&event) == 0) {
-    return 0;
-  }
-
-  return keyboard_dispatch_route_event(&event);
+  return processed_count;
 }
