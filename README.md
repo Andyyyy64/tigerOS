@@ -118,6 +118,26 @@ Expected output includes:
 PASS: mount/open/read/write/close checks completed
 ```
 
+## Directory Traversal and Path Resolution Unit Test
+
+```sh
+make test-fs-dir
+```
+
+Builds and runs the host-side directory/path unit tests (`build/fs/fs_dir_test`) that validate:
+
+- path normalization (`fs_path_normalize`)
+- absolute/relative path resolution with root clamping (`fs_path_resolve`)
+- directory traversal and navigation (`fs_dir_walk`, `fs_dir_cd`, `fs_dir_pwd`)
+- deterministic directory listing order and count reporting (`fs_dir_readdir`)
+- directory creation semantics (`fs_dir_mkdir`, `fs_dir_mkdir_p`)
+
+Expected output includes:
+
+```text
+fs dir tests passed
+```
+
 ## Useful Variables
 
 - `CROSS_COMPILE` (default: `riscv64-unknown-elf-`)

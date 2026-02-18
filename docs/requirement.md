@@ -55,6 +55,7 @@ We want to develop an OS on RISC-V with a workflow that can be continuously driv
 
 - [x] A basic file system (e.g., FAT12/FAT32 or minimal custom) is mounted.
 - [x] Files can be read and written through the kernel or shell.
+- [x] Path normalization/resolution helpers support `.`/`..`, repeated separators, and absolute/relative inputs.
 - [ ] Directory listing and traversal work (`ls`, `cd`, `pwd`).
 
 ### Verification
@@ -143,3 +144,4 @@ Current bootstrap commands:
 - Run UART serial line echo test on QEMU: `make qemu-serial-echo-test`
 - Run physical page allocator unit tests: `make test-page-alloc`
 - Run OTFS mount/read/write regression test: `make qemu-fs-rw-test`
+- Run directory traversal/path resolution unit tests: `make test-fs-dir`
