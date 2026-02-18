@@ -9,8 +9,7 @@ typedef struct {
   const char *content;
 } path_state_file_t;
 
-static fs_dir_tree_t g_path_tree;
-static int g_path_ready;
+static path_state_context_t g_default_context;
 
 static const path_state_file_t g_seed_files[] = {
     {"/hello.txt", "hello from shell fs\n"},
@@ -127,18 +126,21 @@ static int path_parent(const char *path, char *out, size_t out_len) {
   return 0;
 }
 
-static int resolve_to_absolute(const char *path, char *out, size_t out_len) {
+static int resolve_to_absolute(path_state_context_t *context,
+                               const char *path,
+                               char *out,
+                               size_t out_len) {
   char cwd[FS_PATH_MAX];
   const char *input = path;
 
-  if (out == NULL || out_len == 0u) {
+  if (context == NULL || out == NULL || out_len == 0u) {
     return -1;
   }
   if (input == NULL || input[0] == '\0') {
     input = ".";
   }
 
-  if (fs_dir_pwd(&g_path_tree, cwd, sizeof(cwd)) != 0) {
+  if (fs_dir_pwd(&context->dir_tree, cwd, sizeof(cwd)) != 0) {
     return -1;
   }
 
@@ -205,16 +207,20 @@ static int entry_insert_sorted(path_state_entry_t *entries,
   return 0;
 }
 
-static int ensure_initialized(void) {
+static int ensure_initialized(path_state_context_t *context) {
   size_t i = 0u;
 
-  if (g_path_ready != 0) {
+  if (context == NULL) {
+    return -1;
+  }
+
+  if (context->ready != 0) {
     return 0;
   }
 
-  fs_dir_init(&g_path_tree);
-  if (fs_dir_mkdir(&g_path_tree, "/etc") != 0 || fs_dir_mkdir(&g_path_tree, "/home") != 0 ||
-      fs_dir_mkdir(&g_path_tree, "/tmp") != 0) {
+  fs_dir_init(&context->dir_tree);
+  if (fs_dir_mkdir(&context->dir_tree, "/etc") != 0 || fs_dir_mkdir(&context->dir_tree, "/home") != 0 ||
+      fs_dir_mkdir(&context->dir_tree, "/tmp") != 0) {
     return -1;
   }
 
@@ -223,44 +229,48 @@ static int ensure_initialized(void) {
     if (path_parent(g_seed_files[i].path, parent, sizeof(parent)) != 0) {
       return -1;
     }
-    if (ps_strcmp(parent, "/") != 0 && fs_dir_mkdir_p(&g_path_tree, parent) != 0) {
+    if (ps_strcmp(parent, "/") != 0 && fs_dir_mkdir_p(&context->dir_tree, parent) != 0) {
       return -1;
     }
   }
 
-  g_path_ready = 1;
+  context->ready = 1;
   return 0;
 }
 
-void path_state_init(void) {
-  g_path_ready = 0;
-  (void)ensure_initialized();
+void path_state_context_init(path_state_context_t *context) {
+  if (context == NULL) {
+    return;
+  }
+
+  context->ready = 0;
+  (void)ensure_initialized(context);
 }
 
-int path_state_pwd(char *out, size_t out_len) {
-  if (ensure_initialized() != 0) {
+int path_state_pwd_ctx(path_state_context_t *context, char *out, size_t out_len) {
+  if (ensure_initialized(context) != 0) {
     return -1;
   }
-  return fs_dir_pwd(&g_path_tree, out, out_len);
+  return fs_dir_pwd(&context->dir_tree, out, out_len);
 }
 
-int path_state_cd(const char *path) {
-  if (ensure_initialized() != 0) {
+int path_state_cd_ctx(path_state_context_t *context, const char *path) {
+  if (ensure_initialized(context) != 0) {
     return -1;
   }
   if (path == NULL) {
     return -1;
   }
-  return fs_dir_cd(&g_path_tree, path);
+  return fs_dir_cd(&context->dir_tree, path);
 }
 
-int path_state_mkdir(const char *path) {
+int path_state_mkdir_ctx(path_state_context_t *context, const char *path) {
   char absolute[FS_PATH_MAX];
 
-  if (ensure_initialized() != 0) {
+  if (ensure_initialized(context) != 0) {
     return -1;
   }
-  if (path == NULL || resolve_to_absolute(path, absolute, sizeof(absolute)) != 0) {
+  if (path == NULL || resolve_to_absolute(context, path, absolute, sizeof(absolute)) != 0) {
     return -1;
   }
   if (absolute[0] == '/' && absolute[1] == '\0') {
@@ -270,13 +280,14 @@ int path_state_mkdir(const char *path) {
     return -1;
   }
 
-  return fs_dir_mkdir(&g_path_tree, absolute);
+  return fs_dir_mkdir(&context->dir_tree, absolute);
 }
 
-int path_state_ls(const char *path,
-                  path_state_entry_t *entries,
-                  size_t max_entries,
-                  size_t *out_count) {
+int path_state_ls_ctx(path_state_context_t *context,
+                      const char *path,
+                      path_state_entry_t *entries,
+                      size_t max_entries,
+                      size_t *out_count) {
   char absolute[FS_PATH_MAX];
   size_t count = 0u;
   int is_file_path = 0;
@@ -286,10 +297,10 @@ int path_state_ls(const char *path,
   }
   *out_count = 0u;
 
-  if (ensure_initialized() != 0) {
+  if (ensure_initialized(context) != 0) {
     return -1;
   }
-  if (resolve_to_absolute(path, absolute, sizeof(absolute)) != 0) {
+  if (resolve_to_absolute(context, path, absolute, sizeof(absolute)) != 0) {
     return -1;
   }
 
@@ -319,7 +330,7 @@ int path_state_ls(const char *path,
     size_t dir_count = 0u;
     size_t i = 0u;
 
-    if (fs_dir_readdir(&g_path_tree, absolute, dir_entries, FS_DIR_MAX_NODES, &dir_count) != 0) {
+    if (fs_dir_readdir(&context->dir_tree, absolute, dir_entries, FS_DIR_MAX_NODES, &dir_count) != 0) {
       return -1;
     }
 
@@ -359,7 +370,7 @@ int path_state_ls(const char *path,
   return 0;
 }
 
-int path_state_cat(const char *path, const char **out_contents) {
+int path_state_cat_ctx(path_state_context_t *context, const char *path, const char **out_contents) {
   char absolute[FS_PATH_MAX];
   int file_index;
 
@@ -368,10 +379,10 @@ int path_state_cat(const char *path, const char **out_contents) {
   }
   *out_contents = NULL;
 
-  if (ensure_initialized() != 0) {
+  if (ensure_initialized(context) != 0) {
     return -1;
   }
-  if (path == NULL || resolve_to_absolute(path, absolute, sizeof(absolute)) != 0) {
+  if (path == NULL || resolve_to_absolute(context, path, absolute, sizeof(absolute)) != 0) {
     return -1;
   }
 
@@ -382,4 +393,27 @@ int path_state_cat(const char *path, const char **out_contents) {
 
   *out_contents = g_seed_files[(size_t)file_index].content;
   return 0;
+}
+
+void path_state_init(void) { path_state_context_init(&g_default_context); }
+
+int path_state_pwd(char *out, size_t out_len) {
+  return path_state_pwd_ctx(&g_default_context, out, out_len);
+}
+
+int path_state_cd(const char *path) { return path_state_cd_ctx(&g_default_context, path); }
+
+int path_state_mkdir(const char *path) {
+  return path_state_mkdir_ctx(&g_default_context, path);
+}
+
+int path_state_ls(const char *path,
+                  path_state_entry_t *entries,
+                  size_t max_entries,
+                  size_t *out_count) {
+  return path_state_ls_ctx(&g_default_context, path, entries, max_entries, out_count);
+}
+
+int path_state_cat(const char *path, const char **out_contents) {
+  return path_state_cat_ctx(&g_default_context, path, out_contents);
 }

@@ -14,6 +14,7 @@
 #include "trap.h"
 #include "wm_compositor.h"
 #include "wm_drag.h"
+#include "wm_terminal_window.h"
 #include "wm_window.h"
 
 static void console_put_hex32(uint32_t value) {
@@ -141,11 +142,13 @@ void kernel_main(void) {
   uint32_t keyboard_events_front = 0u;
   uint32_t keyboard_events_back = 0u;
   uint32_t keyboard_events_processed = 0u;
+  uint32_t multi_term_marker = 0u;
   uint32_t front_initial_x = 0u;
   uint32_t front_initial_y = 0u;
   int overlap_ok = 0;
   int mouse_ok = 0;
   int keyboard_ok = 0;
+  int multi_term_ok = 0;
   const wm_window_t *hit_before;
   const wm_window_t *hit_after;
   const wm_window_t *active_window;
@@ -319,6 +322,18 @@ void kernel_main(void) {
     line_io_write("\n");
   } else {
     line_io_write("WM: keyboard focus routing failed\n");
+  }
+
+  if (wm_terminal_multi_session_test(&multi_term_marker) == 0) {
+    multi_term_ok = 1;
+  }
+
+  if (multi_term_ok != 0) {
+    line_io_write("WM: multi terminal isolation marker 0x");
+    console_put_hex32(multi_term_marker);
+    line_io_write("\n");
+  } else {
+    line_io_write("WM: multi terminal isolation failed\n");
   }
 
   if (demo_window_app_register() == 0) {

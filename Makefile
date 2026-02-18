@@ -36,6 +36,7 @@ SRCS_C := \
 	kernel/mm/page_alloc.c \
 	kernel/input/event_queue.c \
 	kernel/input/keyboard_dispatch.c \
+	kernel/tty/session.c \
 	apps/libapp/app_window.c \
 	apps/demo_window_app.c \
 	kernel/main.c \
@@ -53,6 +54,7 @@ SRCS_C := \
 	kernel/wm/focus.c \
 	kernel/wm/compositor.c \
 	kernel/wm/drag.c \
+	kernel/wm/terminal_window.c \
 	drivers/video/qemu_virt_fb.c
 SRCS_S := \
 	arch/riscv/start.S \
@@ -69,7 +71,7 @@ TEST_PAGE_ALLOC_SRCS := \
 TEST_SCHED_TIMER_BIN := $(BUILD_DIR)/test-sched-timer
 TEST_SHELL_BIN := $(BUILD_DIR)/test-shell
 
-.PHONY: all clean test test-smoke qemu-smoke qemu-gfx-test qemu-wm-single-test qemu-wm-overlap-test qemu-keyboard-focus-test qemu-mouse-test qemu-app-window-test qemu-serial-echo-test qemu-shell-basic-test qemu-shell-fs-test qemu-trap-test qemu-timer-test qemu-sched-test qemu-fs-rw-test test-page-alloc test-fs-dir test-sched-timer test-shell
+.PHONY: all clean test test-smoke qemu-smoke qemu-gfx-test qemu-wm-single-test qemu-wm-overlap-test qemu-keyboard-focus-test qemu-mouse-test qemu-app-window-test qemu-multi-term-test qemu-serial-echo-test qemu-shell-basic-test qemu-shell-fs-test qemu-trap-test qemu-timer-test qemu-sched-test qemu-fs-rw-test test-page-alloc test-fs-dir test-sched-timer test-shell
 
 all: $(KERNEL_ELF) $(KERNEL_BIN)
 
@@ -124,6 +126,9 @@ qemu-keyboard-focus-test: $(KERNEL_ELF) scripts/run_qemu.sh
 
 qemu-app-window-test: $(KERNEL_ELF) scripts/run_qemu.sh
 	QEMU_BIN="$(QEMU)" ./scripts/run_qemu.sh "$(KERNEL_ELF)" "APP: demo window callback marker 0x"
+
+qemu-multi-term-test: $(KERNEL_ELF) scripts/run_qemu.sh
+	QEMU_BIN="$(QEMU)" ./scripts/run_qemu.sh "$(KERNEL_ELF)" "WM: multi terminal isolation marker 0x"
 
 qemu-serial-echo-test: $(KERNEL_ELF)
 	@set -eu; \
