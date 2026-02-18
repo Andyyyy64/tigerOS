@@ -53,8 +53,8 @@ We want to develop an OS on RISC-V with a workflow that can be continuously driv
 
 ### File System
 
-- [ ] A basic file system (e.g., FAT12/FAT32 or minimal custom) is mounted.
-- [ ] Files can be read and written through the kernel or shell.
+- [x] A basic file system (e.g., FAT12/FAT32 or minimal custom) is mounted.
+- [x] Files can be read and written through the kernel or shell.
 - [ ] Directory listing and traversal work (`ls`, `cd`, `pwd`).
 
 ### Verification
@@ -141,3 +141,4 @@ Current bootstrap commands:
 - Run framebuffer graphics test on QEMU: `make qemu-gfx-test`
 - Run UART serial line echo test on QEMU: `make qemu-serial-echo-test`
 - Run physical page allocator unit tests: `make test-page-alloc`
+- Run OTFS mount/read/write regression test: `make qemu-fs-rw-test`

@@ -80,6 +80,23 @@ page allocator unit tests passed
 all unit tests passed
 ```
 
+## Filesystem Mount/Read/Write Test
+
+```sh
+make qemu-fs-rw-test
+```
+
+Builds host-side OTFS utilities, generates a deterministic filesystem image, and runs the
+read/write validation flow. The test covers mount/unmount, create+truncate semantics,
+offset writes via `fs_seek`, multi-block reads/writes, sparse writes with zero-filled gaps,
+and remount persistence checks.
+
+Expected output includes:
+
+```text
+PASS: mount/open/read/write/close checks completed
+```
+
 ## Useful Variables
 
 - `CROSS_COMPILE` (default: `riscv64-unknown-elf-`)
