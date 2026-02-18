@@ -6,6 +6,8 @@ enum {
   SBI_LEGACY_SET_TIMER_EID = 0x00UL,
   SBI_EXT_TIME_EID = 0x54494d45UL,
   SBI_EXT_TIME_SET_TIMER_FID = 0x00UL,
+  SIE_STIE = 1ULL << 5,
+  SSTATUS_SIE = 1ULL << 1,
 };
 
 struct sbi_ret {
@@ -54,6 +56,10 @@ uint64_t riscv_timer_now(void) {
   return now;
 }
 
+uint64_t riscv_timer_read_time(void) {
+  return riscv_timer_now();
+}
+
 void riscv_timer_set_deadline(uint64_t deadline) {
   struct sbi_ret ret = sbi_ecall(deadline,
                                  0ULL,
@@ -69,4 +75,9 @@ void riscv_timer_set_deadline(uint64_t deadline) {
   }
 
   sbi_legacy_set_timer(deadline);
+}
+
+void riscv_timer_enable_interrupts(void) {
+  __asm__ volatile("csrs sie, %0" : : "r"(SIE_STIE));
+  __asm__ volatile("csrs sstatus, %0" : : "r"(SSTATUS_SIE));
 }
