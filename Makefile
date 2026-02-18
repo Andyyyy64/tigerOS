@@ -14,13 +14,16 @@ CFLAGS := -march=rv64imac -mabi=lp64 -mcmodel=medany -ffreestanding -fno-pic -O2
 ASFLAGS := $(CFLAGS)
 LDFLAGS := -nostdlib -nostartfiles -Wl,--build-id=none -Wl,-T,arch/riscv/linker.ld -Wl,-Map,$(BUILD_DIR)/kernel.map
 
-SRCS_C := kernel/main.c
+SRCS_C := \
+	kernel/main.c \
+	kernel/gfx/framebuffer.c \
+	drivers/video/qemu_virt_fb.c
 SRCS_S := arch/riscv/start.S
 OBJS := \
 	$(patsubst %.c,$(BUILD_DIR)/%.o,$(SRCS_C)) \
 	$(patsubst %.S,$(BUILD_DIR)/%.o,$(SRCS_S))
 
-.PHONY: all clean qemu-smoke
+.PHONY: all clean qemu-smoke qemu-gfx-test
 
 all: $(KERNEL_ELF) $(KERNEL_BIN)
 
@@ -42,6 +45,10 @@ $(KERNEL_BIN): $(KERNEL_ELF)
 
 qemu-smoke: $(KERNEL_ELF) scripts/run_qemu.sh
 	QEMU_BIN="$(QEMU)" ./scripts/run_qemu.sh "$(KERNEL_ELF)" "BOOT: kernel entry"
+
+qemu-gfx-test: $(KERNEL_ELF) scripts/run_qemu.sh
+	QEMU_BIN="$(QEMU)" ./scripts/run_qemu.sh "$(KERNEL_ELF)" "GFX: framebuffer initialized"
+	QEMU_BIN="$(QEMU)" ./scripts/run_qemu.sh "$(KERNEL_ELF)" "GFX: deterministic marker 0x"
 
 clean:
 	rm -rf "$(BUILD_DIR)"

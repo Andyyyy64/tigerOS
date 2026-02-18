@@ -1,5 +1,6 @@
 #include <stdint.h>
 
+#include "framebuffer.h"
 #include "uart.h"
 
 enum {
@@ -43,9 +44,45 @@ void uart_puts(const char *s) {
   }
 }
 
+static void uart_put_hex32(uint32_t value) {
+  static const char digits[] = "0123456789ABCDEF";
+  int shift;
+
+  for (shift = 28; shift >= 0; shift -= 4) {
+    uart_putc(digits[(value >> (uint32_t)shift) & 0x0fu]);
+  }
+}
+
 void kernel_main(void) {
+  uint32_t marker_a;
+  uint32_t marker_b;
+
   uart_init();
   uart_puts("BOOT: kernel entry\n");
+
+  if (framebuffer_init() != 0) {
+    uart_puts("GFX: framebuffer init failed\n");
+    for (;;) {
+      __asm__ volatile("wfi");
+    }
+  }
+
+  uart_puts("GFX: framebuffer initialized\n");
+
+  marker_a = framebuffer_render_test_pattern();
+  marker_b = framebuffer_render_test_pattern();
+
+  if (marker_a == marker_b) {
+    uart_puts("GFX: deterministic marker 0x");
+    uart_put_hex32(marker_a);
+    uart_puts("\n");
+  } else {
+    uart_puts("GFX: marker mismatch 0x");
+    uart_put_hex32(marker_a);
+    uart_puts(" != 0x");
+    uart_put_hex32(marker_b);
+    uart_puts("\n");
+  }
 
   for (;;) {
     __asm__ volatile("wfi");
