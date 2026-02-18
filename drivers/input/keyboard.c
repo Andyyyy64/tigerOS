@@ -1,9 +1,11 @@
 #include <stdint.h>
 
 #include "keyboard.h"
+#include "wm_focus.h"
 
 typedef struct keyboard_state {
   keyboard_event_t events[KEYBOARD_EVENT_QUEUE_CAPACITY];
+  const wm_window_t *focus_windows[KEYBOARD_EVENT_QUEUE_CAPACITY];
   uint32_t read_index;
   uint32_t write_index;
   uint32_t count;
@@ -20,7 +22,7 @@ enum {
 
 static keyboard_state_t g_keyboard_state;
 
-static int keyboard_queue_push(const keyboard_event_t *event) {
+static int keyboard_queue_push(const keyboard_event_t *event, const wm_window_t *focus_window) {
   if (event == (const keyboard_event_t *)0) {
     return -1;
   }
@@ -30,6 +32,7 @@ static int keyboard_queue_push(const keyboard_event_t *event) {
   }
 
   g_keyboard_state.events[g_keyboard_state.write_index] = *event;
+  g_keyboard_state.focus_windows[g_keyboard_state.write_index] = focus_window;
   g_keyboard_state.write_index += 1u;
   if (g_keyboard_state.write_index >= KEYBOARD_EVENT_QUEUE_CAPACITY) {
     g_keyboard_state.write_index = 0u;
@@ -160,17 +163,24 @@ static char keyboard_printable_for_scancode(uint8_t scancode, uint8_t shift_down
 }
 
 void keyboard_reset(void) {
+  uint32_t i;
+
   g_keyboard_state.read_index = 0u;
   g_keyboard_state.write_index = 0u;
   g_keyboard_state.count = 0u;
   g_keyboard_state.shift_mask = 0u;
   g_keyboard_state.saw_extended_prefix = 0u;
+
+  for (i = 0u; i < KEYBOARD_EVENT_QUEUE_CAPACITY; ++i) {
+    g_keyboard_state.focus_windows[i] = (const wm_window_t *)0;
+  }
 }
 
 int keyboard_handle_scancode(uint8_t scancode) {
   uint8_t is_break;
   uint8_t keycode;
   keyboard_event_t event;
+  const wm_window_t *focused_window;
   uint8_t control;
   char printable;
 
@@ -213,12 +223,13 @@ int keyboard_handle_scancode(uint8_t scancode) {
   event.pressed = 1u;
   event.text = '\0';
   event.control = 0u;
+  focused_window = wm_focus_active_window();
 
   control = keyboard_control_for_scancode(keycode);
   if (control != 0u) {
     event.type = KEYBOARD_EVENT_CONTROL;
     event.control = control;
-    return keyboard_queue_push(&event);
+    return keyboard_queue_push(&event, focused_window);
   }
 
   printable = keyboard_printable_for_scancode(keycode, keyboard_shift_down());
@@ -228,11 +239,12 @@ int keyboard_handle_scancode(uint8_t scancode) {
 
   event.type = KEYBOARD_EVENT_TEXT;
   event.text = printable;
-  return keyboard_queue_push(&event);
+  return keyboard_queue_push(&event, focused_window);
 }
 
-int keyboard_pop_event(keyboard_event_t *out_event) {
-  if (out_event == (keyboard_event_t *)0) {
+static int keyboard_pop_event_internal(keyboard_event_t *out_event,
+                                       const wm_window_t **out_focus_window) {
+  if (out_event == (keyboard_event_t *)0 || out_focus_window == (const wm_window_t **)0) {
     return -1;
   }
 
@@ -241,6 +253,8 @@ int keyboard_pop_event(keyboard_event_t *out_event) {
   }
 
   *out_event = g_keyboard_state.events[g_keyboard_state.read_index];
+  *out_focus_window = g_keyboard_state.focus_windows[g_keyboard_state.read_index];
+  g_keyboard_state.focus_windows[g_keyboard_state.read_index] = (const wm_window_t *)0;
   g_keyboard_state.read_index += 1u;
   if (g_keyboard_state.read_index >= KEYBOARD_EVENT_QUEUE_CAPACITY) {
     g_keyboard_state.read_index = 0u;
@@ -248,6 +262,15 @@ int keyboard_pop_event(keyboard_event_t *out_event) {
 
   g_keyboard_state.count -= 1u;
   return 0;
+}
+
+int keyboard_pop_event_with_focus(keyboard_event_t *out_event, const wm_window_t **out_focus_window) {
+  return keyboard_pop_event_internal(out_event, out_focus_window);
+}
+
+int keyboard_pop_event(keyboard_event_t *out_event) {
+  const wm_window_t *ignored_focus_window;
+  return keyboard_pop_event_internal(out_event, &ignored_focus_window);
 }
 
 uint32_t keyboard_pending_count(void) { return g_keyboard_state.count; }

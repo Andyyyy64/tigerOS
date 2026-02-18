@@ -2,7 +2,6 @@
 
 #include "keyboard.h"
 #include "keyboard_dispatch.h"
-#include "wm_compositor.h"
 #include "wm_layers.h"
 
 typedef struct keyboard_binding {
@@ -34,16 +33,14 @@ static keyboard_binding_t *find_binding(const wm_window_t *window) {
   return (keyboard_binding_t *)0;
 }
 
-static void dispatch_to_focused_endpoint(const keyboard_event_t *event) {
-  const wm_window_t *focused_window;
+static void dispatch_to_window_endpoint(const wm_window_t *focus_window, const keyboard_event_t *event) {
   keyboard_binding_t *binding;
 
   if (event == (const keyboard_event_t *)0 || g_keyboard_dispatch_state.sink == (keyboard_dispatch_fn)0) {
     return;
   }
 
-  focused_window = wm_compositor_active_window();
-  binding = find_binding(focused_window);
+  binding = find_binding(focus_window);
   if (binding == (keyboard_binding_t *)0) {
     return;
   }
@@ -92,10 +89,11 @@ void keyboard_dispatch_set_sink(keyboard_dispatch_fn dispatch_fn) {
 
 uint32_t keyboard_dispatch_pending(void) {
   keyboard_event_t event;
+  const wm_window_t *focus_window;
   uint32_t processed_count = 0u;
 
-  while (keyboard_pop_event(&event) == 0) {
-    dispatch_to_focused_endpoint(&event);
+  while (keyboard_pop_event_with_focus(&event, &focus_window) == 0) {
+    dispatch_to_window_endpoint(focus_window, &event);
     processed_count += 1u;
   }
 
