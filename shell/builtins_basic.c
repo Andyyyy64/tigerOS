@@ -1,11 +1,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "console.h"
-#include "line_io.h"
 #include "page_alloc.h"
 #include "shell_builtins.h"
 #include "shell_builtins_fs.h"
+#include "shell_fd_table.h"
 
 typedef int (*shell_builtin_fn_t)(int argc, char **argv);
 
@@ -36,7 +35,7 @@ static void shell_write_u64(uint64_t value) {
   unsigned int count = 0u;
 
   if (value == 0u) {
-    console_putc('0');
+    shell_fd_putc('0');
     return;
   }
 
@@ -46,7 +45,7 @@ static void shell_write_u64(uint64_t value) {
   }
 
   while (count > 0u) {
-    console_putc(scratch[--count]);
+    shell_fd_putc(scratch[--count]);
   }
 }
 
@@ -54,11 +53,11 @@ static void shell_write_hex_uintptr(uintptr_t value) {
   static const char digits[] = "0123456789abcdef";
   unsigned int shift = (unsigned int)(sizeof(uintptr_t) * 8u);
 
-  line_io_write("0x");
+  shell_fd_write("0x");
 
   while (shift > 0u) {
     shift -= 4u;
-    console_putc(digits[(value >> shift) & 0xfu]);
+    shell_fd_putc(digits[(value >> shift) & 0xfu]);
   }
 }
 
@@ -83,13 +82,13 @@ static int shell_builtin_help(int argc, char **argv) {
   (void)argc;
   (void)argv;
 
-  line_io_write("available commands:\n");
+  shell_fd_write("available commands:\n");
   for (i = 0u; i < (sizeof(g_shell_builtins) / sizeof(g_shell_builtins[0])); ++i) {
-    line_io_write("  ");
-    line_io_write(g_shell_builtins[i].name);
-    line_io_write(" - ");
-    line_io_write(g_shell_builtins[i].help);
-    line_io_write("\n");
+    shell_fd_write("  ");
+    shell_fd_write(g_shell_builtins[i].name);
+    shell_fd_write(" - ");
+    shell_fd_write(g_shell_builtins[i].help);
+    shell_fd_write("\n");
   }
 
   return SHELL_EXEC_OK;
@@ -98,19 +97,19 @@ static int shell_builtin_help(int argc, char **argv) {
 static int shell_builtin_echo(int argc, char **argv) {
   int i;
 
-  line_io_write("echo:");
+  shell_fd_write("echo:");
   if (argc > 1) {
-    line_io_write(" ");
+    shell_fd_write(" ");
   }
 
   for (i = 1; i < argc; ++i) {
-    line_io_write(argv[i]);
+    shell_fd_write(argv[i]);
     if (i + 1 < argc) {
-      line_io_write(" ");
+      shell_fd_write(" ");
     }
   }
 
-  line_io_write("\n");
+  shell_fd_write("\n");
   return SHELL_EXEC_OK;
 }
 
@@ -130,19 +129,19 @@ static int shell_builtin_meminfo(int argc, char **argv) {
   range_start = page_alloc_range_start();
   range_end = page_alloc_range_end();
 
-  line_io_write("meminfo: range=");
+  shell_fd_write("meminfo: range=");
   shell_write_hex_uintptr(range_start);
-  line_io_write("-");
+  shell_fd_write("-");
   shell_write_hex_uintptr(range_end);
-  line_io_write(" page_size=");
+  shell_fd_write(" page_size=");
   shell_write_u64((uint64_t)PAGE_ALLOC_PAGE_SIZE);
-  line_io_write(" total_pages=");
+  shell_fd_write(" total_pages=");
   shell_write_u64((uint64_t)total_pages);
-  line_io_write(" free_pages=");
+  shell_fd_write(" free_pages=");
   shell_write_u64((uint64_t)free_pages);
-  line_io_write(" used_pages=");
+  shell_fd_write(" used_pages=");
   shell_write_u64((uint64_t)used_pages);
-  line_io_write("\n");
+  shell_fd_write("\n");
 
   return SHELL_EXEC_OK;
 }
