@@ -40,6 +40,7 @@ We want to develop an OS on RISC-V with a workflow that can be continuously driv
 - [x] Window focus and activation work; active window is brought to front.
 - [x] Mouse input is captured and events are delivered to the appropriate window/task.
 - [x] Keyboard input is routed to the focused window/terminal.
+- [x] Application-facing window API can open windows and dispatch pointer events to app callbacks.
 - [x] Overlay/layer management allows correct stacking of windows.
 
 ### Shell and Unix-like Commands
@@ -146,6 +147,7 @@ Current bootstrap commands:
 - Run overlap/focus/layer activation test on QEMU: `make qemu-wm-overlap-test`
 - Run mouse input/drag dispatch test on QEMU: `make qemu-mouse-test`
 - Run keyboard focus routing test on QEMU: `make qemu-keyboard-focus-test`
+- Run application window API demo test on QEMU: `make qemu-app-window-test`
 - Run UART serial line echo test on QEMU: `make qemu-serial-echo-test`
 - Run physical page allocator unit tests: `make test-page-alloc`
 - Run OTFS mount/read/write regression test: `make qemu-fs-rw-test`
