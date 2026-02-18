@@ -69,6 +69,36 @@ GFX: framebuffer initialized
 GFX: deterministic marker 0x...
 ```
 
+## Window Manager Single-Window Composition Test
+
+```sh
+make qemu-wm-single-test
+```
+
+Boots the kernel and validates single-window composition output:
+
+```text
+WM: single window composed marker 0x...
+```
+
+## Window Manager Overlap/Focus Layer Test
+
+```sh
+make qemu-wm-overlap-test
+```
+
+Boots the kernel with overlapping windows and verifies overlap hit-testing plus focus/layer activation:
+
+- hit-test on overlap initially resolves to the front-most window
+- activating the back window moves it to the front of the layer stack
+- active window tracking updates and composed output marker changes
+
+Expected output includes:
+
+```text
+WM: overlap focus activation marker 0x...
+```
+
 ## UART Line I/O Echo Test
 
 ```sh
