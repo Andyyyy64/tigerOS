@@ -15,6 +15,13 @@
 #define FS_O_CREATE (1u << 2)
 #define FS_O_TRUNC (1u << 3)
 
+#define FS_OK 0
+#define FS_ERR_ARG -1
+#define FS_ERR_IO -2
+#define FS_ERR_STATE -3
+#define FS_ERR_NOT_FOUND -4
+#define FS_ERR_NO_SPACE -5
+
 typedef struct {
   uint8_t in_use;
   uint8_t dir_index;
