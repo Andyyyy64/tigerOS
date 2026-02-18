@@ -60,7 +60,7 @@ We want to develop an OS on RISC-V with a workflow that can be continuously driv
 
 ### Verification
 
-- [x] The project has at least one automated smoke test that boots in QEMU and checks expected boot log markers (`make qemu-smoke` checks `BOOT: kernel entry`).
+- [x] The project has at least one automated smoke test that boots in QEMU and checks expected boot log markers (`make test-smoke`/`make qemu-smoke` checks `BOOT: kernel entry` plus `TRAP_TEST: handled` or `TICK: periodic interrupt`).
 - [ ] Core kernel changes are covered by unit/integration tests where feasible, and all required checks pass.
 
 ## Scope
