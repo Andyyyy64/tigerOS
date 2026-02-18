@@ -50,31 +50,46 @@ static void sched_log_switch(uint32_t from_id, uint32_t to_id) {
   line_io_write("\n");
 }
 
-static uint32_t sched_next_slot(void) {
-  uint32_t slot;
-
-  if (g_runnable_count == 0u) {
-    return SCHED_NO_SLOT;
-  }
-
-  if (g_current_slot == SCHED_NO_SLOT) {
-    return 0u;
-  }
-
-  slot = g_current_slot + 1u;
-  if (slot >= g_runnable_count) {
-    slot = 0u;
-  }
-
-  return slot;
-}
-
 static task_control_block_t *sched_task_from_slot(uint32_t slot) {
   if (slot >= g_runnable_count) {
     return (task_control_block_t *)0;
   }
 
   return task_find(g_runnable_queue[slot]);
+}
+
+static uint32_t sched_find_next_slot(void) {
+  uint32_t offset;
+  uint32_t start_slot;
+
+  if (g_runnable_count == 0u) {
+    return SCHED_NO_SLOT;
+  }
+
+  if (g_current_slot == SCHED_NO_SLOT) {
+    start_slot = 0u;
+  } else {
+    start_slot = g_current_slot + 1u;
+    if (start_slot >= g_runnable_count) {
+      start_slot = 0u;
+    }
+  }
+
+  for (offset = 0u; offset < g_runnable_count; ++offset) {
+    uint32_t slot = start_slot + offset;
+    task_control_block_t *task;
+
+    if (slot >= g_runnable_count) {
+      slot -= g_runnable_count;
+    }
+
+    task = sched_task_from_slot(slot);
+    if (task != (task_control_block_t *)0 && task->state == TASK_STATE_RUNNABLE) {
+      return slot;
+    }
+  }
+
+  return SCHED_NO_SLOT;
 }
 
 static void sched_test_task_1(task_control_block_t *task) {
@@ -121,6 +136,7 @@ void sched_init(void) {
   g_alternating_switches = 0u;
   g_alternation_reported = false;
   g_scheduler_running = false;
+  g_bootstrapped = false;
 }
 
 void sched_bootstrap_test_tasks(void) {
@@ -164,7 +180,11 @@ void sched_handle_timer_interrupt(const struct trap_frame *frame) {
     task_context_switch_out(prev_task, frame);
   }
 
-  next_slot = sched_next_slot();
+  next_slot = sched_find_next_slot();
+  if (next_slot == SCHED_NO_SLOT) {
+    return;
+  }
+
   next_task = sched_task_from_slot(next_slot);
   if (next_task == (task_control_block_t *)0) {
     return;
@@ -173,7 +193,8 @@ void sched_handle_timer_interrupt(const struct trap_frame *frame) {
   g_current_slot = next_slot;
   task_context_switch_in(next_task, frame);
 
-  if (prev_id != next_task->id && g_switch_log_count < SCHED_SWITCH_LOG_LIMIT) {
+  if (prev_task != (task_control_block_t *)0 && prev_id != next_task->id &&
+      g_switch_log_count < SCHED_SWITCH_LOG_LIMIT) {
     sched_log_switch(prev_id, next_task->id);
     g_switch_log_count += 1u;
   }
