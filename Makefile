@@ -19,7 +19,9 @@ HOST_CFLAGS ?= -std=c11 -O2 -g0 -Wall -Wextra -Werror
 
 SRCS_C := \
 	drivers/uart/uart.c \
+	drivers/video/virt_fb.c \
 	kernel/console.c \
+	kernel/gfx/framebuffer.c \
 	kernel/mm/init.c \
 	kernel/mm/page_alloc.c \
 	kernel/main.c \
@@ -35,7 +37,7 @@ TEST_PAGE_ALLOC_SRCS := \
 	tests/kernel/test_page_alloc.c \
 	kernel/mm/page_alloc.c
 
-.PHONY: all clean qemu-smoke qemu-serial-echo-test test-page-alloc
+.PHONY: all clean qemu-smoke qemu-serial-echo-test qemu-gfx-test test-page-alloc
 
 all: $(KERNEL_ELF) $(KERNEL_BIN)
 
@@ -77,6 +79,9 @@ qemu-serial-echo-test: $(KERNEL_ELF)
 	printf '%s\n' "$$OUTPUT"; \
 	printf '%s\n' "$$OUTPUT" | grep -F "BOOT: kernel entry" >/dev/null; \
 	printf '%s\n' "$$OUTPUT" | grep -F "echo: $$TEST_LINE" >/dev/null
+
+qemu-gfx-test: $(KERNEL_ELF) scripts/run_qemu.sh
+	QEMU_BIN="$(QEMU)" ./scripts/run_qemu.sh "$(KERNEL_ELF)" "GFX: pattern marker=0xCFB67227"
 
 $(TEST_PAGE_ALLOC_BIN): $(TEST_PAGE_ALLOC_SRCS) include/page_alloc.h
 	@mkdir -p "$(BUILD_DIR)"
