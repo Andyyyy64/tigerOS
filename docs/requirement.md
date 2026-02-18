@@ -27,7 +27,7 @@ We want to develop an OS on RISC-V with a workflow that can be continuously driv
 
 - [x] Kernel image builds successfully with the project's standard build command (`make`).
 - [x] Running the image on QEMU reaches kernel entry and prints a boot banner to serial console (`BOOT: kernel entry`).
-- [ ] UART console input/output works for at least line-based command input.
+- [x] UART console input/output works for at least line-based command input.
 - [ ] Trap/exception handler is wired and logs cause information on unexpected trap.
 - [ ] Timer interrupt is enabled and at least one periodic tick is observable in logs.
 - [ ] A simple physical page allocator (4KiB pages) is implemented with basic allocation/free tests.
@@ -44,7 +44,7 @@ We want to develop an OS on RISC-V with a workflow that can be continuously driv
 
 ### Shell and Unix-like Commands
 
-- [ ] A terminal shell accepts line-based command input and shows output.
+- [x] A terminal shell accepts line-based command input and shows output.
 - [ ] At least these commands work: `ls`, `cat`, `echo`, `pwd`, `cd`, `mkdir`, `help`.
 - [ ] `ls` lists directory contents (files and subdirectories).
 - [ ] `cat` reads and prints file contents.
@@ -138,3 +138,4 @@ Current bootstrap commands:
 
 - Build kernel artifacts: `make`
 - Run boot smoke test on QEMU: `make qemu-smoke`
+- Run UART serial line echo test on QEMU: `make qemu-serial-echo-test`
