@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#include "wm_window.h"
+
 typedef enum keyboard_event_type {
   KEYBOARD_EVENT_TEXT = 0,
   KEYBOARD_EVENT_CONTROL = 1,
@@ -30,6 +32,7 @@ enum {
 void keyboard_reset(void);
 int keyboard_handle_scancode(uint8_t scancode);
 int keyboard_pop_event(keyboard_event_t *out_event);
+int keyboard_pop_event_with_focus(keyboard_event_t *out_event, const wm_window_t **out_focus_window);
 uint32_t keyboard_pending_count(void);
 
 #endif
