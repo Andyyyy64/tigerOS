@@ -3,8 +3,8 @@
 #include "console.h"
 #include "framebuffer.h"
 #include "line_io.h"
-#include "trap.h"
 #include "mm_init.h"
+#include "trap.h"
 
 static void console_put_hex32(uint32_t value) {
   static const char digits[] = "0123456789ABCDEF";
@@ -24,8 +24,8 @@ void kernel_main(void) {
   mm_init();
   line_io_write("BOOT: kernel entry\n");
   trap_init();
-  trap_trigger_test();
   line_io_write("console: line io ready\n");
+  trap_test_trigger();
 
   if (framebuffer_init() != 0) {
     line_io_write("GFX: framebuffer init failed\n");

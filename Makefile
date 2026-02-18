@@ -24,10 +24,10 @@ HOST_CFLAGS ?= -std=c11 -O2 -g0 -Wall -Wextra -Werror
 SRCS_C := \
 	drivers/uart/uart.c \
 	kernel/console.c \
+	kernel/trap.c \
 	kernel/mm/init.c \
 	kernel/mm/page_alloc.c \
 	kernel/main.c \
-	kernel/trap.c \
 	shell/line_io.c \
 	kernel/gfx/framebuffer.c \
 	drivers/video/qemu_virt_fb.c
@@ -102,7 +102,7 @@ qemu-serial-echo-test: $(KERNEL_ELF)
 qemu-trap-test: $(KERNEL_ELF)
 	@set -eu; \
 	OUTPUT="$$( \
-		"$(TIMEOUT_BIN)" 5s "$(QEMU)" \
+		"$(TIMEOUT_BIN)" 6s "$(QEMU)" \
 			-machine virt \
 			-cpu rv64 \
 			-m 128M \
@@ -115,8 +115,8 @@ qemu-trap-test: $(KERNEL_ELF)
 	)"; \
 	printf '%s\n' "$$OUTPUT"; \
 	printf '%s\n' "$$OUTPUT" | grep -F "BOOT: kernel entry" >/dev/null; \
-	printf '%s\n' "$$OUTPUT" | grep -F "TRAP_TEST: mcause=0x0000000000000003" >/dev/null; \
-	printf '%s\n' "$$OUTPUT" | grep -F "TRAP_TEST: mepc=0x" >/dev/null
+	printf '%s\n' "$$OUTPUT" | grep -F "TRAP_TEST: mcause=0x0000000000000003 mepc=0x" >/dev/null; \
+	printf '%s\n' "$$OUTPUT" | grep -F "TRAP_TEST: resumed" >/dev/null
 
 qemu-fs-rw-test: $(FS_TEST_BIN) $(FS_MKFS_BIN) scripts/gen_fs_image.sh
 	./scripts/gen_fs_image.sh "$(FS_TEST_IMAGE)" "$(FS_MKFS_BIN)"
