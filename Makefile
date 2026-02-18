@@ -34,6 +34,8 @@ SRCS_C := \
 	shell/line_io.c \
 	kernel/gfx/framebuffer.c \
 	kernel/wm/window.c \
+	kernel/wm/layers.c \
+	kernel/wm/focus.c \
 	kernel/wm/compositor.c \
 	drivers/video/qemu_virt_fb.c
 SRCS_S := \
@@ -49,7 +51,7 @@ TEST_PAGE_ALLOC_SRCS := \
 	tests/kernel/test_page_alloc.c \
 	kernel/mm/page_alloc.c
 
-.PHONY: all clean qemu-smoke qemu-gfx-test qemu-wm-single-test qemu-serial-echo-test qemu-trap-test qemu-timer-test qemu-fs-rw-test test-page-alloc test-fs-dir
+.PHONY: all clean qemu-smoke qemu-gfx-test qemu-wm-single-test qemu-wm-overlap-test qemu-serial-echo-test qemu-trap-test qemu-timer-test qemu-fs-rw-test test-page-alloc test-fs-dir
 
 all: $(KERNEL_ELF) $(KERNEL_BIN)
 
@@ -90,6 +92,9 @@ qemu-gfx-test: $(KERNEL_ELF) scripts/run_qemu.sh
 
 qemu-wm-single-test: $(KERNEL_ELF) scripts/run_qemu.sh
 	QEMU_BIN="$(QEMU)" ./scripts/run_qemu.sh "$(KERNEL_ELF)" "WM: single window composed marker 0x"
+
+qemu-wm-overlap-test: $(KERNEL_ELF) scripts/run_qemu.sh
+	QEMU_BIN="$(QEMU)" ./scripts/run_qemu.sh "$(KERNEL_ELF)" "WM: overlap focus activation marker 0x"
 
 qemu-serial-echo-test: $(KERNEL_ELF)
 	@set -eu; \
