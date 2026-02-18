@@ -56,6 +56,11 @@ static int test_walk_cd_pwd_and_readdir(void) {
   TEST_ASSERT(fs_dir_readdir(&tree, "/usr", entries, 8u, &count) == 0, "readdir /usr");
   TEST_ASSERT(count == 1u, "/usr should have one child");
   TEST_ASSERT(strcmp(entries[0].name, "local") == 0, "/usr child mismatch");
+  TEST_ASSERT(fs_dir_readdir(&tree, "/", NULL, 0u, &count) == 0, "readdir count-only query");
+  TEST_ASSERT(count == 4u, "count-only readdir mismatch");
+  TEST_ASSERT(fs_dir_readdir(&tree, "/", entries, 2u, &count) != 0,
+              "readdir with too-small buffer should fail");
+  TEST_ASSERT(count == 4u, "readdir overflow should still report needed count");
 
   TEST_ASSERT(fs_dir_cd(&tree, "/usr/local/bin") == 0, "cd /usr/local/bin");
   TEST_ASSERT(fs_dir_pwd(&tree, cwd, sizeof(cwd)) == 0, "pwd at /usr/local/bin");

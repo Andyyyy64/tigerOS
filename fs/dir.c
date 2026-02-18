@@ -6,7 +6,7 @@
 static int valid_tree(const fs_dir_tree_t *tree) {
   if (tree == NULL || tree->node_count == 0u || tree->node_count > FS_DIR_MAX_NODES ||
       tree->cwd_index < 0 || tree->cwd_index >= (int)tree->node_count ||
-      tree->nodes[0].used == 0u) {
+      tree->nodes[tree->cwd_index].used == 0u || tree->nodes[0].used == 0u) {
     return 0;
   }
   return 1;
@@ -297,6 +297,7 @@ int fs_dir_readdir(const fs_dir_tree_t *tree,
   int dir_idx = -1;
   int cur;
   size_t count = 0u;
+  int overflow = 0;
 
   if (out_count == NULL) {
     return -1;
@@ -312,15 +313,24 @@ int fs_dir_readdir(const fs_dir_tree_t *tree,
 
   cur = tree->nodes[dir_idx].first_child;
   while (cur >= 0) {
-    if (count >= max_entries) {
+    if (tree->nodes[cur].used == 0u) {
       return -1;
     }
-    memcpy(entries[count].name, tree->nodes[cur].name, FS_DIR_NAME_MAX + 1u);
+
+    if (entries != NULL && count < max_entries) {
+      memcpy(entries[count].name, tree->nodes[cur].name, FS_DIR_NAME_MAX + 1u);
+    } else if (entries != NULL) {
+      overflow = 1;
+    }
+
     count++;
     cur = tree->nodes[cur].next_sibling;
   }
 
   *out_count = count;
+  if (overflow != 0) {
+    return -1;
+  }
   return 0;
 }
 
