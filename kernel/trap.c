@@ -1,90 +1,78 @@
-#include <stdbool.h>
 #include <stdint.h>
 
 #include "console.h"
 #include "trap.h"
 
-extern void trap_entry(void);
-
 enum {
-  TRAP_INTERRUPT_BIT = 1ull << 63,
-  TRAP_CAUSE_BREAKPOINT = 3u,
-  TRAP_INSN_SIZE = 4u,
+  MCAUSE_INTERRUPT_BIT = 1ULL << 63,
+  MCAUSE_CODE_MASK = MCAUSE_INTERRUPT_BIT - 1ULL,
+  MCAUSE_EXCEPTION_BREAKPOINT = 3ULL,
 };
 
-static char trap_hex_digit(uint8_t value) {
-  if (value < 10u) {
-    return (char)('0' + value);
+extern void trap_vector(void);
+
+static inline void csr_write_stvec(uint64_t value) {
+  __asm__ volatile("csrw stvec, %0" : : "r"(value));
+}
+
+static void console_write_hex_u64(uint64_t value) {
+  static const char k_hex_digits[] = "0123456789abcdef";
+  char out[18];
+  int i;
+
+  out[0] = '0';
+  out[1] = 'x';
+  for (i = 0; i < 16; ++i) {
+    unsigned int shift = (unsigned int)((15 - i) * 4);
+    out[2 + i] = k_hex_digits[(value >> shift) & 0xFU];
   }
 
-  return (char)('a' + (value - 10u));
-}
-
-static void trap_write_hex64(uint64_t value) {
-  char out[17];
-  unsigned int i;
-
-  for (i = 0u; i < 16u; ++i) {
-    uint8_t nibble = (uint8_t)((value >> ((15u - i) * 4u)) & 0x0fu);
-    out[i] = trap_hex_digit(nibble);
+  for (i = 0; i < (int)sizeof(out); ++i) {
+    console_putc(out[i]);
   }
-  out[16] = '\0';
-  console_write(out);
 }
 
-static void trap_log_test_markers(const struct trap_frame *frame) {
-  console_write("TRAP_TEST: mcause=0x");
-  trap_write_hex64(frame->cause);
-  console_write("\n");
-
-  console_write("TRAP_TEST: mepc=0x");
-  trap_write_hex64(frame->epc);
-  console_write("\n");
+static uint64_t trap_instruction_len(uint64_t pc) {
+  uint16_t insn = *(const volatile uint16_t *)(uintptr_t)pc;
+  return ((insn & 0x3U) == 0x3U) ? 4ULL : 2ULL;
 }
 
-static void trap_log_unexpected(const struct trap_frame *frame) {
-  console_write("TRAP_UNEXPECTED: mcause=0x");
-  trap_write_hex64(frame->cause);
-  console_write(" mepc=0x");
-  trap_write_hex64(frame->epc);
-  console_write(" mtval=0x");
-  trap_write_hex64(frame->tval);
-  console_write("\n");
-}
-
-void trap_init(void) {
-  uintptr_t vector = (uintptr_t)&trap_entry;
-
-  __asm__ volatile("csrw stvec, %0" : : "r"(vector));
-}
-
-void trap_trigger_test(void) {
-  __asm__ volatile(".4byte 0x00100073");
-}
-
-void trap_handle(struct trap_frame *frame) {
-  uint64_t raw_cause;
-  uint64_t cause_code;
-  bool is_interrupt;
-
-  if (frame == 0) {
-    for (;;) {
-      __asm__ volatile("wfi");
-    }
-  }
-
-  raw_cause = frame->cause;
-  is_interrupt = (raw_cause & TRAP_INTERRUPT_BIT) != 0u;
-  cause_code = raw_cause & ~TRAP_INTERRUPT_BIT;
-
-  if (!is_interrupt && cause_code == TRAP_CAUSE_BREAKPOINT) {
-    trap_log_test_markers(frame);
-    frame->epc += TRAP_INSN_SIZE;
-    return;
-  }
-
-  trap_log_unexpected(frame);
+static void trap_halt(void) {
   for (;;) {
     __asm__ volatile("wfi");
   }
+}
+
+void trap_init(void) {
+  csr_write_stvec((uint64_t)(uintptr_t)&trap_vector);
+}
+
+void trap_test_trigger(void) {
+  console_write("TRAP_TEST: trigger\n");
+  __asm__ volatile("ebreak");
+  console_write("TRAP_TEST: resumed\n");
+}
+
+void trap_handle(struct trap_frame *frame) {
+  uint64_t cause = frame->mcause;
+  uint64_t code = cause & MCAUSE_CODE_MASK;
+
+  if ((cause & MCAUSE_INTERRUPT_BIT) == 0ULL && code == MCAUSE_EXCEPTION_BREAKPOINT) {
+    console_write("TRAP_TEST: mcause=");
+    console_write_hex_u64(cause);
+    console_write(" mepc=");
+    console_write_hex_u64(frame->mepc);
+    console_write("\n");
+    frame->mepc += trap_instruction_len(frame->mepc);
+    return;
+  }
+
+  console_write("TRAP: unexpected mcause=");
+  console_write_hex_u64(frame->mcause);
+  console_write(" mepc=");
+  console_write_hex_u64(frame->mepc);
+  console_write(" mtval=");
+  console_write_hex_u64(frame->mtval);
+  console_write("\n");
+  trap_halt();
 }

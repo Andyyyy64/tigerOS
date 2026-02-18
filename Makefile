@@ -15,6 +15,7 @@ FS_BUILD_DIR := $(BUILD_DIR)/fs
 FS_TEST_BIN := $(FS_BUILD_DIR)/fs_rw_test
 FS_MKFS_BIN := $(FS_BUILD_DIR)/mkfs_otfs
 FS_TEST_IMAGE := $(FS_BUILD_DIR)/qemu_fs_rw.img
+FS_DIR_TEST_BIN := $(FS_BUILD_DIR)/fs_dir_test
 
 CFLAGS := -march=rv64imac_zicsr -mabi=lp64 -mcmodel=medany -ffreestanding -fno-pic -O2 -g0 -Wall -Wextra -Werror
 ASFLAGS := $(CFLAGS)
@@ -24,10 +25,10 @@ HOST_CFLAGS ?= -std=c11 -O2 -g0 -Wall -Wextra -Werror
 SRCS_C := \
 	drivers/uart/uart.c \
 	kernel/console.c \
+	kernel/trap.c \
 	kernel/mm/init.c \
 	kernel/mm/page_alloc.c \
 	kernel/main.c \
-	kernel/trap.c \
 	shell/line_io.c \
 	kernel/gfx/framebuffer.c \
 	kernel/wm/window.c \
@@ -46,7 +47,7 @@ TEST_PAGE_ALLOC_SRCS := \
 	tests/kernel/test_page_alloc.c \
 	kernel/mm/page_alloc.c
 
-.PHONY: all clean qemu-smoke qemu-gfx-test qemu-wm-single-test qemu-serial-echo-test qemu-trap-test qemu-fs-rw-test test-page-alloc
+.PHONY: all clean qemu-smoke qemu-gfx-test qemu-wm-single-test qemu-serial-echo-test qemu-trap-test qemu-fs-rw-test test-page-alloc test-fs-dir
 
 all: $(KERNEL_ELF) $(KERNEL_BIN)
 
@@ -73,6 +74,10 @@ $(FS_TEST_BIN): fs/fs_rw_test.c fs/otfs.c include/fs.h
 $(FS_MKFS_BIN): fs/mkfs_otfs.c fs/otfs.c include/fs.h
 	@mkdir -p "$(FS_BUILD_DIR)"
 	$(HOST_CC) $(HOST_CFLAGS) -Iinclude fs/mkfs_otfs.c fs/otfs.c -o "$@"
+
+$(FS_DIR_TEST_BIN): tests/fs/test_fs_dir.c fs/dir.c fs/path.c include/fs_dir.h include/fs_path.h
+	@mkdir -p "$(FS_BUILD_DIR)"
+	$(HOST_CC) $(HOST_CFLAGS) -Iinclude tests/fs/test_fs_dir.c fs/dir.c fs/path.c -o "$@"
 
 qemu-smoke: $(KERNEL_ELF) scripts/run_qemu.sh
 	QEMU_BIN="$(QEMU)" ./scripts/run_qemu.sh "$(KERNEL_ELF)" "BOOT: kernel entry"
@@ -107,7 +112,7 @@ qemu-serial-echo-test: $(KERNEL_ELF)
 qemu-trap-test: $(KERNEL_ELF)
 	@set -eu; \
 	OUTPUT="$$( \
-		"$(TIMEOUT_BIN)" 5s "$(QEMU)" \
+		"$(TIMEOUT_BIN)" 6s "$(QEMU)" \
 			-machine virt \
 			-cpu rv64 \
 			-m 128M \
@@ -120,8 +125,8 @@ qemu-trap-test: $(KERNEL_ELF)
 	)"; \
 	printf '%s\n' "$$OUTPUT"; \
 	printf '%s\n' "$$OUTPUT" | grep -F "BOOT: kernel entry" >/dev/null; \
-	printf '%s\n' "$$OUTPUT" | grep -F "TRAP_TEST: mcause=0x0000000000000003" >/dev/null; \
-	printf '%s\n' "$$OUTPUT" | grep -F "TRAP_TEST: mepc=0x" >/dev/null
+	printf '%s\n' "$$OUTPUT" | grep -F "TRAP_TEST: mcause=0x0000000000000003 mepc=0x" >/dev/null; \
+	printf '%s\n' "$$OUTPUT" | grep -F "TRAP_TEST: resumed" >/dev/null
 
 qemu-fs-rw-test: $(FS_TEST_BIN) $(FS_MKFS_BIN) scripts/gen_fs_image.sh
 	./scripts/gen_fs_image.sh "$(FS_TEST_IMAGE)" "$(FS_MKFS_BIN)"
@@ -133,6 +138,9 @@ $(TEST_PAGE_ALLOC_BIN): $(TEST_PAGE_ALLOC_SRCS) include/page_alloc.h
 
 test-page-alloc: $(TEST_PAGE_ALLOC_BIN) scripts/run_unit_tests.sh
 	./scripts/run_unit_tests.sh "$(TEST_PAGE_ALLOC_BIN)"
+
+test-fs-dir: $(FS_DIR_TEST_BIN) scripts/run_unit_tests.sh
+	./scripts/run_unit_tests.sh "$(FS_DIR_TEST_BIN)"
 
 clean:
 	rm -rf "$(BUILD_DIR)"

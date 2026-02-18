@@ -35,7 +35,7 @@ We want to develop an OS on RISC-V with a workflow that can be continuously driv
 
 ### Graphics and Window Manager
 
-- [ ] Pixel-level graphics rendering (framebuffer or equivalent) is working.
+- [x] Pixel-level graphics rendering (framebuffer or equivalent) is working.
 - [ ] Window manager can create, draw, and overlap multiple windows (title bar, content area).
 - [ ] Window focus and activation work; active window is brought to front.
 - [ ] Mouse input is captured and events are delivered to the appropriate window/task.
@@ -138,5 +138,6 @@ Current bootstrap commands:
 
 - Build kernel artifacts: `make`
 - Run boot smoke test on QEMU: `make qemu-smoke`
+- Run framebuffer graphics test on QEMU: `make qemu-gfx-test`
 - Run UART serial line echo test on QEMU: `make qemu-serial-echo-test`
 - Run physical page allocator unit tests: `make test-page-alloc`
