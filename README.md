@@ -195,6 +195,29 @@ BOOT: kernel entry
 echo: uart line echo test
 ```
 
+## Shell Filesystem Builtins Test
+
+```sh
+make qemu-shell-fs-test
+```
+
+Boots the kernel, runs shell command sequences over UART, and validates filesystem
+builtins end-to-end:
+
+- help text includes `ls`, `cat`, `pwd`, `cd`, and `mkdir`
+- `pwd` and `cd` track the current directory (including absolute and relative paths)
+- `ls` lists directories/files and appends `/` for directory entries
+- `cat` prints file contents from the seeded shell filesystem
+- `mkdir` creates directories and `cd` reports missing paths with `cd: no such directory`
+
+Expected output includes:
+
+```text
+hello from shell fs
+openTiger shell filesystem
+cd: no such directory
+```
+
 ## Physical Page Allocator Unit Tests
 
 ```sh
