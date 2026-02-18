@@ -30,7 +30,7 @@ We want to develop an OS on RISC-V with a workflow that can be continuously driv
 - [x] UART console input/output works for at least line-based command input.
 - [ ] Trap/exception handler is wired and logs cause information on unexpected trap.
 - [ ] Timer interrupt is enabled and at least one periodic tick is observable in logs.
-- [ ] A simple physical page allocator (4KiB pages) is implemented with basic allocation/free tests.
+- [x] A simple physical page allocator (4KiB pages) is implemented with basic allocation/free tests.
 - [ ] Basic kernel task execution is possible (at least two runnable tasks with round-robin scheduling).
 
 ### Graphics and Window Manager
@@ -139,3 +139,4 @@ Current bootstrap commands:
 - Build kernel artifacts: `make`
 - Run boot smoke test on QEMU: `make qemu-smoke`
 - Run UART serial line echo test on QEMU: `make qemu-serial-echo-test`
+- Run physical page allocator unit tests: `make test-page-alloc`

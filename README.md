@@ -47,6 +47,25 @@ BOOT: kernel entry
 echo: uart line echo test
 ```
 
+## Physical Page Allocator Unit Tests
+
+```sh
+make test-page-alloc
+```
+
+Builds the host-side allocator unit test binary (`build/test-page-alloc`) and runs it through
+the unit test harness script (`scripts/run_unit_tests.sh`).
+
+The tests cover allocation exhaustion, double-free protection, free-then-reuse behavior, and
+page-range alignment assumptions.
+
+Expected output:
+
+```text
+page allocator unit tests passed
+all unit tests passed
+```
+
 ## Useful Variables
 
 - `CROSS_COMPILE` (default: `riscv64-unknown-elf-`)

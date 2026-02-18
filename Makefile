@@ -24,7 +24,9 @@ SRCS_C := \
 	kernel/mm/page_alloc.c \
 	kernel/main.c \
 	kernel/trap.c \
-	shell/line_io.c
+	shell/line_io.c \
+	kernel/gfx/framebuffer.c \
+	drivers/video/qemu_virt_fb.c
 SRCS_S := \
 	arch/riscv/start.S \
 	arch/riscv/trap.S
@@ -33,8 +35,12 @@ OBJS := \
 	$(patsubst %.S,$(BUILD_DIR)/%.o,$(SRCS_S))
 
 TEST_PAGE_ALLOC_BIN := $(BUILD_DIR)/test-page-alloc
+TEST_PAGE_ALLOC_SRCS := \
+	tests/kernel/test_main.c \
+	tests/kernel/test_page_alloc.c \
+	kernel/mm/page_alloc.c
 
-.PHONY: all clean qemu-smoke qemu-serial-echo-test qemu-trap-test test-page-alloc
+.PHONY: all clean qemu-smoke qemu-gfx-test qemu-serial-echo-test qemu-trap-test test-page-alloc
 
 all: $(KERNEL_ELF) $(KERNEL_BIN)
 
@@ -56,6 +62,10 @@ $(KERNEL_BIN): $(KERNEL_ELF)
 
 qemu-smoke: $(KERNEL_ELF) scripts/run_qemu.sh
 	QEMU_BIN="$(QEMU)" ./scripts/run_qemu.sh "$(KERNEL_ELF)" "BOOT: kernel entry"
+
+qemu-gfx-test: $(KERNEL_ELF) scripts/run_qemu.sh
+	QEMU_BIN="$(QEMU)" ./scripts/run_qemu.sh "$(KERNEL_ELF)" "GFX: framebuffer initialized"
+	QEMU_BIN="$(QEMU)" ./scripts/run_qemu.sh "$(KERNEL_ELF)" "GFX: deterministic marker 0x"
 
 qemu-serial-echo-test: $(KERNEL_ELF)
 	@set -eu; \
@@ -96,12 +106,12 @@ qemu-trap-test: $(KERNEL_ELF)
 	printf '%s\n' "$$OUTPUT" | grep -F "TRAP_TEST: mcause=0x0000000000000003" >/dev/null; \
 	printf '%s\n' "$$OUTPUT" | grep -F "TRAP_TEST: mepc=0x" >/dev/null
 
-$(TEST_PAGE_ALLOC_BIN): kernel/mm/page_alloc_test.c kernel/mm/page_alloc.c include/page_alloc.h
+$(TEST_PAGE_ALLOC_BIN): $(TEST_PAGE_ALLOC_SRCS) include/page_alloc.h
 	@mkdir -p "$(BUILD_DIR)"
-	$(HOST_CC) $(HOST_CFLAGS) -Iinclude kernel/mm/page_alloc_test.c kernel/mm/page_alloc.c -o "$@"
+	$(HOST_CC) $(HOST_CFLAGS) -Iinclude $(TEST_PAGE_ALLOC_SRCS) -o "$@"
 
-test-page-alloc: $(TEST_PAGE_ALLOC_BIN)
-	"$<"
+test-page-alloc: $(TEST_PAGE_ALLOC_BIN) scripts/run_unit_tests.sh
+	./scripts/run_unit_tests.sh "$(TEST_PAGE_ALLOC_BIN)"
 
 clean:
 	rm -rf "$(BUILD_DIR)"
