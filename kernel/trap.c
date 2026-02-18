@@ -10,6 +10,7 @@ enum {
   MCAUSE_INTERRUPT_BIT = 1ULL << 63,
   MCAUSE_CODE_MASK = MCAUSE_INTERRUPT_BIT - 1ULL,
   MCAUSE_INTERRUPT_SUPERVISOR_TIMER = 5ULL,
+  MCAUSE_INTERRUPT_MACHINE_TIMER = 7ULL,
   MCAUSE_EXCEPTION_BREAKPOINT = 3ULL,
 };
 
@@ -81,6 +82,7 @@ static bool trap_dispatch_exception(struct trap_frame *frame, uint64_t code) {
 static bool trap_dispatch_interrupt(struct trap_frame *frame, uint64_t code) {
   switch (code) {
     case MCAUSE_INTERRUPT_SUPERVISOR_TIMER:
+    case MCAUSE_INTERRUPT_MACHINE_TIMER:
       clock_handle_timer_interrupt();
       sched_handle_timer_interrupt(frame);
       return true;

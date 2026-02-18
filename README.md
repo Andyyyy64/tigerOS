@@ -25,14 +25,18 @@ Build outputs:
 ## Smoke Boot Test
 
 ```sh
-make qemu-smoke
+make test-smoke
 ```
 
-The smoke test runs `scripts/run_qemu.sh`, boots the kernel on QEMU `virt`, and checks for:
+The smoke test runs `scripts/qemu_smoke.sh`, boots the kernel on QEMU `virt`, and checks for:
 
 ```text
 BOOT: kernel entry
+TRAP_TEST: handled (or TICK: periodic interrupt)
 ```
+
+With timer interrupts enabled during `clock_init()`, boot output may include up to
+four `TICK: periodic interrupt` lines as periodic timer interrupts are serviced.
 
 ## Trap Handler Test
 
@@ -41,12 +45,12 @@ make qemu-trap-test
 ```
 
 The trap test boots the kernel, triggers an `ebreak`, and verifies trap handling
-plus resume flow:
+flow:
 
 ```text
 BOOT: kernel entry
 TRAP_TEST: mcause=0x0000000000000003 mepc=0x...
-TRAP_TEST: resumed
+TRAP_TEST: handled
 ```
 
 Unexpected traps are logged with cause and fault context before halting:
