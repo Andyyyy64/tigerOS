@@ -29,6 +29,23 @@ int wm_focus_set_active_window(const wm_window_t *window) {
 
 const wm_window_t *wm_focus_active_window(void) { return g_active_window; }
 
+int wm_focus_is_active_window(const wm_window_t *window) {
+  if (window == (const wm_window_t *)0) {
+    return 0;
+  }
+
+  return g_active_window == window ? 1 : 0;
+}
+
+int wm_focus_clear_if_active(const wm_window_t *window) {
+  if (window == (const wm_window_t *)0 || g_active_window != window) {
+    return 0;
+  }
+
+  g_active_window = (const wm_window_t *)0;
+  return 1;
+}
+
 int wm_focus_window_contains_point(const wm_window_t *window, uint32_t x, uint32_t y) {
   if (window == (const wm_window_t *)0) {
     return 0;

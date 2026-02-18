@@ -1,6 +1,8 @@
 #ifndef KEYBOARD_DISPATCH_H
 #define KEYBOARD_DISPATCH_H
 
+#include <stdint.h>
+
 #include "keyboard.h"
 #include "wm_window.h"
 
@@ -13,6 +15,7 @@ int keyboard_dispatch_register_endpoint(const wm_window_t *window, keyboard_text
                                         keyboard_control_handler_t control_handler, void *ctx);
 int keyboard_dispatch_unregister_endpoint(const wm_window_t *window);
 int keyboard_dispatch_route_event(const keyboard_event_t *event);
+int keyboard_dispatch_route_input_byte(uint8_t byte);
 int keyboard_dispatch_poll_and_route(void);
 
 #endif

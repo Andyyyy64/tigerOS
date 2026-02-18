@@ -14,6 +14,11 @@ typedef struct keyboard_endpoint {
 
 static keyboard_endpoint_t g_endpoints[WM_MAX_WINDOWS];
 
+static int keyboard_event_is_control(keyboard_event_type_t type) {
+  return type == KEYBOARD_EVENT_BACKSPACE || type == KEYBOARD_EVENT_ENTER || type == KEYBOARD_EVENT_TAB ||
+         type == KEYBOARD_EVENT_ESCAPE;
+}
+
 static int keyboard_endpoint_find_index(const wm_window_t *window) {
   uint32_t i;
 
@@ -51,6 +56,9 @@ void keyboard_dispatch_reset(void) {
     g_endpoints[i].control_handler = (keyboard_control_handler_t)0;
     g_endpoints[i].ctx = (void *)0;
   }
+
+  keyboard_input_reset();
+  wm_focus_reset();
 }
 
 int keyboard_dispatch_register_endpoint(const wm_window_t *window, keyboard_text_handler_t text_handler,
@@ -88,6 +96,7 @@ int keyboard_dispatch_unregister_endpoint(const wm_window_t *window) {
   g_endpoints[(uint32_t)index].text_handler = (keyboard_text_handler_t)0;
   g_endpoints[(uint32_t)index].control_handler = (keyboard_control_handler_t)0;
   g_endpoints[(uint32_t)index].ctx = (void *)0;
+  (void)wm_focus_clear_if_active(window);
   return 0;
 }
 
@@ -111,13 +120,21 @@ int keyboard_dispatch_route_event(const keyboard_event_t *event) {
   }
 
   endpoint = &g_endpoints[(uint32_t)index];
+  if (wm_focus_is_active_window(endpoint->window) == 0) {
+    return 0;
+  }
+
   if (event->type == KEYBOARD_EVENT_TEXT) {
-    if (endpoint->text_handler == (keyboard_text_handler_t)0) {
+    if (endpoint->text_handler == (keyboard_text_handler_t)0 || event->text == '\0') {
       return 0;
     }
 
     endpoint->text_handler(endpoint->window, event->text, endpoint->ctx);
     return 1;
+  }
+
+  if (keyboard_event_is_control(event->type) == 0) {
+    return 0;
   }
 
   if (endpoint->control_handler == (keyboard_control_handler_t)0) {
@@ -126,6 +143,16 @@ int keyboard_dispatch_route_event(const keyboard_event_t *event) {
 
   endpoint->control_handler(endpoint->window, event->type, endpoint->ctx);
   return 1;
+}
+
+int keyboard_dispatch_route_input_byte(uint8_t byte) {
+  keyboard_event_t event;
+
+  if (keyboard_event_from_byte(byte, &event) == 0) {
+    return 0;
+  }
+
+  return keyboard_dispatch_route_event(&event);
 }
 
 int keyboard_dispatch_poll_and_route(void) {
