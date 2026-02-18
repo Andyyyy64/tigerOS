@@ -5,6 +5,6 @@
 
 #include "framebuffer.h"
 
-bool video_fb_init(framebuffer_info_t *out_info);
+bool video_fb_init(struct framebuffer_info *out_info);
 
 #endif

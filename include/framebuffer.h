@@ -9,6 +9,7 @@ struct framebuffer_info {
   uint32_t height;
   uint32_t stride;
 };
+typedef struct framebuffer_info framebuffer_info_t;
 
 int framebuffer_init(void);
 const struct framebuffer_info *framebuffer_get_info(void);
