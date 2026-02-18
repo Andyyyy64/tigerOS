@@ -1,5 +1,6 @@
 #include <stdint.h>
 
+#include "apps/demo_window_app.h"
 #include "clock.h"
 #include "console.h"
 #include "framebuffer.h"
@@ -318,6 +319,12 @@ void kernel_main(void) {
     line_io_write("\n");
   } else {
     line_io_write("WM: keyboard focus routing failed\n");
+  }
+
+  if (demo_window_app_register() == 0) {
+    demo_window_app_run_once();
+  } else {
+    line_io_write("APP: demo window register failed\n");
   }
 
   for (;;) {

@@ -36,6 +36,8 @@ SRCS_C := \
 	kernel/mm/page_alloc.c \
 	kernel/input/event_queue.c \
 	kernel/input/keyboard_dispatch.c \
+	apps/libapp/app_window.c \
+	apps/demo_window_app.c \
 	kernel/main.c \
 	shell/line_io.c \
 	kernel/gfx/framebuffer.c \
@@ -58,7 +60,7 @@ TEST_PAGE_ALLOC_SRCS := \
 	tests/kernel/test_page_alloc.c \
 	kernel/mm/page_alloc.c
 
-.PHONY: all clean test-smoke qemu-smoke qemu-gfx-test qemu-wm-single-test qemu-wm-overlap-test qemu-keyboard-focus-test qemu-mouse-test qemu-serial-echo-test qemu-trap-test qemu-timer-test qemu-sched-test qemu-fs-rw-test test-page-alloc test-fs-dir
+.PHONY: all clean test-smoke qemu-smoke qemu-gfx-test qemu-wm-single-test qemu-wm-overlap-test qemu-keyboard-focus-test qemu-mouse-test qemu-app-window-test qemu-serial-echo-test qemu-trap-test qemu-timer-test qemu-sched-test qemu-fs-rw-test test-page-alloc test-fs-dir
 
 all: $(KERNEL_ELF) $(KERNEL_BIN)
 
@@ -110,6 +112,9 @@ qemu-mouse-test: $(KERNEL_ELF) scripts/run_qemu.sh
 
 qemu-keyboard-focus-test: $(KERNEL_ELF) scripts/run_qemu.sh
 	QEMU_BIN="$(QEMU)" ./scripts/run_qemu.sh "$(KERNEL_ELF)" "WM: keyboard focus routing marker 0x"
+
+qemu-app-window-test: $(KERNEL_ELF) scripts/run_qemu.sh
+	QEMU_BIN="$(QEMU)" ./scripts/run_qemu.sh "$(KERNEL_ELF)" "APP: demo window callback marker 0x"
 
 qemu-serial-echo-test: $(KERNEL_ELF)
 	@set -eu; \
