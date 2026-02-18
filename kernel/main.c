@@ -8,6 +8,7 @@
 #include "line_io.h"
 #include "mm_init.h"
 #include "mouse.h"
+#include "sched.h"
 #include "trap.h"
 #include "wm_compositor.h"
 #include "wm_drag.h"
@@ -158,6 +159,7 @@ void kernel_main(void) {
   line_io_write("console: line io ready\n");
   trap_test_trigger();
   clock_init();
+  sched_init();
 
   if (framebuffer_init() != 0) {
     line_io_write("GFX: framebuffer init failed\n");

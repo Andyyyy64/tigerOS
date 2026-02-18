@@ -3,6 +3,7 @@
 
 #include "clock.h"
 #include "console.h"
+#include "sched.h"
 #include "trap.h"
 
 enum {
@@ -78,11 +79,12 @@ static bool trap_dispatch_exception(struct trap_frame *frame, uint64_t code) {
   }
 }
 
-static bool trap_dispatch_interrupt(uint64_t code) {
+static bool trap_dispatch_interrupt(struct trap_frame *frame, uint64_t code) {
   switch (code) {
     case MCAUSE_INTERRUPT_SUPERVISOR_TIMER:
     case MCAUSE_INTERRUPT_MACHINE_TIMER:
       clock_handle_timer_interrupt();
+      sched_handle_timer_tick(frame);
       return true;
     default:
       return false;
@@ -117,7 +119,7 @@ void trap_handle(struct trap_frame *frame) {
   uint64_t code = trap_cause_code(cause);
   bool is_interrupt = trap_is_interrupt(cause);
 
-  if (is_interrupt && trap_dispatch_interrupt(code)) {
+  if (is_interrupt && trap_dispatch_interrupt(frame, code)) {
     return;
   }
 
