@@ -23,8 +23,10 @@ LDFLAGS := -nostdlib -nostartfiles -Wl,--build-id=none -Wl,-T,arch/riscv/linker.
 HOST_CFLAGS ?= -std=c11 -O2 -g0 -Wall -Wextra -Werror
 
 SRCS_C := \
+	drivers/input/keyboard.c \
 	drivers/uart/uart.c \
 	kernel/console.c \
+	kernel/input/keyboard_dispatch.c \
 	kernel/trap.c \
 	kernel/mm/init.c \
 	kernel/mm/page_alloc.c \
@@ -49,7 +51,7 @@ TEST_PAGE_ALLOC_SRCS := \
 	tests/kernel/test_page_alloc.c \
 	kernel/mm/page_alloc.c
 
-.PHONY: all clean qemu-smoke qemu-gfx-test qemu-wm-single-test qemu-wm-overlap-test qemu-serial-echo-test qemu-trap-test qemu-fs-rw-test test-page-alloc test-fs-dir
+.PHONY: all clean qemu-smoke qemu-gfx-test qemu-wm-single-test qemu-wm-overlap-test qemu-keyboard-focus-test qemu-serial-echo-test qemu-trap-test qemu-fs-rw-test test-page-alloc test-fs-dir
 
 all: $(KERNEL_ELF) $(KERNEL_BIN)
 
@@ -93,6 +95,9 @@ qemu-wm-single-test: $(KERNEL_ELF) scripts/run_qemu.sh
 
 qemu-wm-overlap-test: $(KERNEL_ELF) scripts/run_qemu.sh
 	QEMU_BIN="$(QEMU)" ./scripts/run_qemu.sh "$(KERNEL_ELF)" "WM: overlap focus activation marker 0x"
+
+qemu-keyboard-focus-test: $(KERNEL_ELF) scripts/run_qemu.sh
+	QEMU_BIN="$(QEMU)" ./scripts/run_qemu.sh "$(KERNEL_ELF)" "WM: keyboard focus routing marker 0x"
 
 qemu-serial-echo-test: $(KERNEL_ELF)
 	@set -eu; \
