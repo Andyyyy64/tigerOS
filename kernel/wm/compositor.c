@@ -46,18 +46,6 @@ static uint32_t hash_title(const char *title) {
   return hash;
 }
 
-static int window_has_valid_frame(const wm_window_t *window) {
-  if (window == (const wm_window_t *)0) {
-    return 0;
-  }
-
-  if (window->frame.width == 0u || window->frame.height == 0u) {
-    return 0;
-  }
-
-  return 1;
-}
-
 static int mul_u32_overflow(uint32_t a, uint32_t b, uint32_t *out) {
   uint32_t product;
 
@@ -84,7 +72,7 @@ static void wm_draw_window(const wm_window_t *window) {
   wm_rect_t content;
   uint32_t title_hash;
 
-  if (!window_has_valid_frame(window)) {
+  if (wm_window_is_valid(window) == 0) {
     return;
   }
 
@@ -121,7 +109,11 @@ int wm_compositor_reset(uint32_t background_color) {
 }
 
 int wm_compositor_add_window(const wm_window_t *window) {
-  if (!window_has_valid_frame(window)) {
+  if (wm_window_is_valid(window) == 0) {
+    return -1;
+  }
+
+  if (wm_layers_index_of(&g_scene.layers, window) >= 0) {
     return -1;
   }
 
