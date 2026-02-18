@@ -2,15 +2,13 @@
 
 #include "framebuffer.h"
 #include "wm_compositor.h"
-
-enum {
-  WM_MAX_WINDOWS = 8u,
-};
+#include "wm_focus.h"
+#include "wm_layers.h"
 
 typedef struct wm_scene {
   uint32_t background_color;
-  const wm_window_t *windows[WM_MAX_WINDOWS];
-  uint32_t window_count;
+  wm_layer_stack_t layers;
+  const wm_window_t *active_window;
 } wm_scene_t;
 
 static wm_scene_t g_scene;
@@ -116,13 +114,9 @@ static void wm_draw_window(const wm_window_t *window) {
 }
 
 int wm_compositor_reset(uint32_t background_color) {
-  uint32_t i;
-
   g_scene.background_color = background_color;
-  for (i = 0u; i < WM_MAX_WINDOWS; ++i) {
-    g_scene.windows[i] = (const wm_window_t *)0;
-  }
-  g_scene.window_count = 0u;
+  wm_layers_reset(&g_scene.layers);
+  g_scene.active_window = (const wm_window_t *)0;
   return 0;
 }
 
@@ -131,21 +125,49 @@ int wm_compositor_add_window(const wm_window_t *window) {
     return -1;
   }
 
-  if (g_scene.window_count >= WM_MAX_WINDOWS) {
+  if (wm_layers_push_back(&g_scene.layers, window) != 0) {
     return -1;
   }
 
-  g_scene.windows[g_scene.window_count] = window;
-  g_scene.window_count += 1u;
+  g_scene.active_window = window;
   return 0;
 }
 
-uint32_t wm_compositor_window_count(void) { return g_scene.window_count; }
+uint32_t wm_compositor_window_count(void) { return wm_layers_count(&g_scene.layers); }
+
+const wm_window_t *wm_compositor_window_at(uint32_t z_index) {
+  return wm_layers_get_at(&g_scene.layers, z_index);
+}
+
+const wm_window_t *wm_compositor_hit_test(uint32_t x, uint32_t y) {
+  return wm_focus_hit_test(&g_scene.layers, x, y, (uint32_t *)0);
+}
+
+int wm_compositor_activate_window(const wm_window_t *window) {
+  if (wm_layers_move_to_front(&g_scene.layers, window) != 0) {
+    return -1;
+  }
+
+  g_scene.active_window = window;
+  return 0;
+}
+
+int wm_compositor_activate_at(uint32_t x, uint32_t y) {
+  const wm_window_t *window = wm_compositor_hit_test(x, y);
+  if (window == (const wm_window_t *)0) {
+    return -1;
+  }
+
+  return wm_compositor_activate_window(window);
+}
+
+const wm_window_t *wm_compositor_active_window(void) { return g_scene.active_window; }
 
 uint32_t wm_compositor_render(void) {
   const struct framebuffer_info *fb;
   uint32_t pixel_count;
   uint32_t i;
+  uint32_t count;
 
   fb = framebuffer_get_info();
   if (fb == (const struct framebuffer_info *)0 || fb->pixels == (volatile uint32_t *)0 ||
@@ -155,8 +177,9 @@ uint32_t wm_compositor_render(void) {
 
   framebuffer_fill_rect(0u, 0u, fb->width, fb->height, g_scene.background_color);
 
-  for (i = 0u; i < g_scene.window_count; ++i) {
-    wm_draw_window(g_scene.windows[i]);
+  count = wm_layers_count(&g_scene.layers);
+  for (i = 0u; i < count; ++i) {
+    wm_draw_window(wm_layers_get_at(&g_scene.layers, i));
   }
 
   if (mul_u32_overflow(fb->height, fb->stride, &pixel_count) != 0) {

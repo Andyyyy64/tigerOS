@@ -21,8 +21,16 @@ void kernel_main(void) {
   uint32_t marker_a;
   uint32_t marker_b;
   uint32_t wm_marker;
+  uint32_t overlap_marker_before;
+  uint32_t overlap_marker_after;
+  int overlap_ok = 0;
+  const wm_window_t *hit_before;
+  const wm_window_t *hit_after;
+  const wm_window_t *active_window;
   char line[128];
   wm_window_t main_window;
+  wm_window_t back_window;
+  wm_window_t front_window;
 
   console_init();
   mm_init();
@@ -67,6 +75,36 @@ void kernel_main(void) {
     line_io_write("\n");
   } else {
     line_io_write("WM: single window compose failed\n");
+  }
+
+  wm_window_init(&back_window, "Back", 48u, 40u, 220u, 160u);
+  back_window.style.title_bar_color = 0x00326f95u;
+  back_window.style.content_color = 0x00e9f3fbu;
+  wm_window_init(&front_window, "Front", 120u, 92u, 220u, 160u);
+  front_window.style.title_bar_color = 0x00814444u;
+  front_window.style.content_color = 0x00f5e6deu;
+
+  wm_compositor_reset(0x0012181fu);
+  if (wm_compositor_add_window(&back_window) == 0 && wm_compositor_add_window(&front_window) == 0) {
+    hit_before = wm_compositor_hit_test(140u, 120u);
+    overlap_marker_before = wm_compositor_render();
+    if (wm_compositor_activate_window(&back_window) == 0) {
+      hit_after = wm_compositor_hit_test(140u, 120u);
+      active_window = wm_compositor_active_window();
+      overlap_marker_after = wm_compositor_render();
+      if (hit_before == &front_window && hit_after == &back_window &&
+          active_window == &back_window && overlap_marker_before != overlap_marker_after) {
+        overlap_ok = 1;
+      }
+    }
+  }
+
+  if (overlap_ok != 0) {
+    line_io_write("WM: overlap focus activation marker 0x");
+    console_put_hex32(overlap_marker_after);
+    line_io_write("\n");
+  } else {
+    line_io_write("WM: overlap focus activation failed\n");
   }
 
   for (;;) {
