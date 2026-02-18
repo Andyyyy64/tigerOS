@@ -19,6 +19,14 @@ static inline void csr_write_stvec(uint64_t value) {
   __asm__ volatile("csrw stvec, %0" : : "r"(value));
 }
 
+static inline bool trap_is_interrupt(uint64_t cause) {
+  return (cause & MCAUSE_INTERRUPT_BIT) != 0ULL;
+}
+
+static inline uint64_t trap_cause_code(uint64_t cause) {
+  return cause & MCAUSE_CODE_MASK;
+}
+
 static void console_write_hex_u64(uint64_t value) {
   static const char k_hex_digits[] = "0123456789abcdef";
   char out[18];
@@ -47,8 +55,31 @@ static void trap_halt(void) {
   }
 }
 
+static bool trap_dispatch_exception(struct trap_frame *frame, uint64_t code) {
+  switch (code) {
+    case MCAUSE_EXCEPTION_BREAKPOINT:
+      if (!trap_test_armed) {
+        return false;
+      }
+      trap_test_armed = false;
+      trap_test_passed = true;
+      console_write("TRAP_TEST: mcause=");
+      console_write_hex_u64(frame->mcause);
+      console_write(" mepc=");
+      console_write_hex_u64(frame->mepc);
+      console_write("\n");
+      frame->mepc += trap_instruction_len(frame->mepc);
+      return true;
+    default:
+      return false;
+  }
+}
+
 void trap_init(void) {
-  csr_write_stvec((uint64_t)(uintptr_t)&trap_vector);
+  uintptr_t stvec_base = (uintptr_t)&trap_vector;
+  /* Force direct mode (MODE=0) to avoid accidental low-bit mode selection. */
+  stvec_base &= ~(uintptr_t)0x3U;
+  csr_write_stvec((uint64_t)stvec_base);
 }
 
 void trap_test_trigger(void) {
@@ -69,17 +100,9 @@ void trap_test_trigger(void) {
 
 void trap_handle(struct trap_frame *frame) {
   uint64_t cause = frame->mcause;
-  uint64_t code = cause & MCAUSE_CODE_MASK;
+  uint64_t code = trap_cause_code(cause);
 
-  if ((cause & MCAUSE_INTERRUPT_BIT) == 0ULL && trap_test_armed && code == MCAUSE_EXCEPTION_BREAKPOINT) {
-    trap_test_armed = false;
-    trap_test_passed = true;
-    console_write("TRAP_TEST: mcause=");
-    console_write_hex_u64(cause);
-    console_write(" mepc=");
-    console_write_hex_u64(frame->mepc);
-    console_write("\n");
-    frame->mepc += trap_instruction_len(frame->mepc);
+  if (!trap_is_interrupt(cause) && trap_dispatch_exception(frame, code)) {
     return;
   }
 

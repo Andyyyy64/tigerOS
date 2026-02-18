@@ -18,13 +18,6 @@
 #define FAT_FREE 0xffffffffu
 #define FAT_END 0xfffffffeu
 
-#define FS_OK 0
-#define FS_ERR_ARG -1
-#define FS_ERR_IO -2
-#define FS_ERR_STATE -3
-#define FS_ERR_NOT_FOUND -4
-#define FS_ERR_NO_SPACE -5
-
 typedef struct __attribute__((packed)) {
   uint8_t magic[8];
   uint32_t version;
@@ -110,6 +103,100 @@ static int sync_metadata(fs_handle_t *fs) {
 }
 
 static bool valid_block_index(uint32_t index) { return index < FS_DATA_BLOCK_COUNT; }
+
+static int validate_name(const char *name) {
+  size_t i;
+  size_t len;
+
+  if (name == NULL) {
+    return FS_ERR_ARG;
+  }
+
+  len = strlen(name);
+  if (len == 0u || len > FS_MAX_NAME_LEN) {
+    return FS_ERR_ARG;
+  }
+
+  for (i = 0; i < len; ++i) {
+    if (name[i] == '/' || name[i] == '\\') {
+      return FS_ERR_ARG;
+    }
+  }
+
+  return FS_OK;
+}
+
+static int validate_entry_chain(fs_handle_t *fs, const fs_dir_entry_disk_t *entry) {
+  uint32_t required_blocks;
+  uint32_t cur;
+  uint32_t blocks = 0;
+
+  required_blocks = (entry->size_bytes + (FS_BLOCK_SIZE - 1u)) / FS_BLOCK_SIZE;
+  if (required_blocks == 0u) {
+    return entry->first_block == FAT_END ? FS_OK : FS_ERR_STATE;
+  }
+  if (entry->first_block == FAT_END || !valid_block_index(entry->first_block)) {
+    return FS_ERR_STATE;
+  }
+
+  cur = entry->first_block;
+  while (cur != FAT_END) {
+    if (!valid_block_index(cur)) {
+      return FS_ERR_STATE;
+    }
+    if (blocks++ >= FS_DATA_BLOCK_COUNT) {
+      return FS_ERR_STATE;
+    }
+    cur = fs->fat[cur];
+  }
+
+  if (blocks < required_blocks) {
+    return FS_ERR_STATE;
+  }
+  return FS_OK;
+}
+
+static int validate_metadata(fs_handle_t *fs) {
+  fs_dir_entry_disk_t *entries = dir_entries(fs);
+  uint32_t i;
+
+  for (i = 0; i < FS_DATA_BLOCK_COUNT; ++i) {
+    uint32_t next = fs->fat[i];
+    if (next != FAT_FREE && next != FAT_END && !valid_block_index(next)) {
+      return FS_ERR_STATE;
+    }
+  }
+
+  for (i = 0; i < FS_MAX_FILES; ++i) {
+    if (entries[i].used == 0u) {
+      continue;
+    }
+    if (memchr(entries[i].name, '\0', FS_MAX_NAME_LEN + 1u) == NULL) {
+      return FS_ERR_STATE;
+    }
+    if (validate_name(entries[i].name) != FS_OK) {
+      return FS_ERR_STATE;
+    }
+    if (validate_entry_chain(fs, &entries[i]) != FS_OK) {
+      return FS_ERR_STATE;
+    }
+  }
+
+  for (i = 0; i < FS_MAX_FILES; ++i) {
+    uint32_t j;
+    if (entries[i].used == 0u) {
+      continue;
+    }
+    for (j = i + 1u; j < FS_MAX_FILES; ++j) {
+      if (entries[j].used != 0u &&
+          strncmp(entries[i].name, entries[j].name, FS_MAX_NAME_LEN + 1u) == 0) {
+        return FS_ERR_STATE;
+      }
+    }
+  }
+
+  return FS_OK;
+}
 
 static int allocate_data_block(fs_handle_t *fs, uint32_t *out_block_index) {
   uint8_t zeros[FS_BLOCK_SIZE];
@@ -376,6 +463,11 @@ int fs_mount(fs_handle_t *fs, const char *image_path) {
   }
   memcpy(fs->fat, fat_bytes, FS_DATA_BLOCK_COUNT * sizeof(uint32_t));
 
+  if (validate_metadata(fs) != FS_OK) {
+    fclose(file);
+    return FS_ERR_STATE;
+  }
+
   fs->image_file = file;
   fs->mounted = 1u;
   fs->block_size = FS_BLOCK_SIZE;
@@ -408,14 +500,17 @@ int fs_open(fs_handle_t *fs, const char *name, uint32_t flags) {
   fs_dir_entry_disk_t *entries;
   int dir_index;
   int fd;
+  int rc;
 
-  if (validate_common(fs) != FS_OK || name == NULL) {
-    return FS_ERR_ARG;
+  rc = validate_common(fs);
+  if (rc != FS_OK) {
+    return rc;
+  }
+  rc = validate_name(name);
+  if (rc != FS_OK) {
+    return rc;
   }
   if ((flags & (FS_O_READ | FS_O_WRITE)) == 0u) {
-    return FS_ERR_ARG;
-  }
-  if (name[0] == '\0' || strlen(name) > FS_MAX_NAME_LEN) {
     return FS_ERR_ARG;
   }
   if ((flags & FS_O_TRUNC) != 0u && (flags & FS_O_WRITE) == 0u) {
@@ -463,7 +558,11 @@ int fs_open(fs_handle_t *fs, const char *name, uint32_t flags) {
 }
 
 int fs_close(fs_handle_t *fs, int fd) {
-  if (validate_common(fs) != FS_OK || !valid_fd(fd)) {
+  int rc = validate_common(fs);
+  if (rc != FS_OK) {
+    return rc;
+  }
+  if (!valid_fd(fd)) {
     return FS_ERR_ARG;
   }
   if (fs->open_files[fd].in_use == 0) {
@@ -474,7 +573,11 @@ int fs_close(fs_handle_t *fs, int fd) {
 }
 
 int fs_seek(fs_handle_t *fs, int fd, uint32_t offset) {
-  if (validate_common(fs) != FS_OK || !valid_fd(fd)) {
+  int rc = validate_common(fs);
+  if (rc != FS_OK) {
+    return rc;
+  }
+  if (!valid_fd(fd)) {
     return FS_ERR_ARG;
   }
   if (fs->open_files[fd].in_use == 0) {
@@ -489,12 +592,17 @@ int fs_read(fs_handle_t *fs, int fd, void *buf, size_t len, size_t *bytes_read) 
   fs_dir_entry_disk_t *entry;
   uint8_t block_buf[FS_BLOCK_SIZE];
   size_t done = 0;
+  int rc;
 
   if (bytes_read != NULL) {
     *bytes_read = 0u;
   }
 
-  if (validate_common(fs) != FS_OK || !valid_fd(fd) || buf == NULL) {
+  rc = validate_common(fs);
+  if (rc != FS_OK) {
+    return rc;
+  }
+  if (!valid_fd(fd) || (len != 0u && buf == NULL)) {
     return FS_ERR_ARG;
   }
 
@@ -546,12 +654,17 @@ int fs_write(fs_handle_t *fs, int fd, const void *buf, size_t len, size_t *bytes
   fs_dir_entry_disk_t *entry;
   uint8_t block_buf[FS_BLOCK_SIZE];
   size_t done = 0;
+  int rc;
 
   if (bytes_written != NULL) {
     *bytes_written = 0u;
   }
 
-  if (validate_common(fs) != FS_OK || !valid_fd(fd) || buf == NULL) {
+  rc = validate_common(fs);
+  if (rc != FS_OK) {
+    return rc;
+  }
+  if (!valid_fd(fd) || (len != 0u && buf == NULL)) {
     return FS_ERR_ARG;
   }
 
@@ -572,8 +685,12 @@ int fs_write(fs_handle_t *fs, int fd, const void *buf, size_t len, size_t *bytes
       chunk = len - done;
     }
 
-    if (resolve_data_block(fs, entry, logical_block, true, &data_block_index) != FS_OK) {
-      return FS_ERR_NO_SPACE;
+    rc = resolve_data_block(fs, entry, logical_block, true, &data_block_index);
+    if (rc != FS_OK) {
+      if (rc == FS_ERR_NO_SPACE) {
+        return FS_ERR_NO_SPACE;
+      }
+      return FS_ERR_STATE;
     }
 
     if (read_data_block(fs, data_block_index, block_buf) != FS_OK) {
