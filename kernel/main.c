@@ -9,6 +9,7 @@
 #include "mm_init.h"
 #include "mouse.h"
 #include "sched.h"
+#include "shell.h"
 #include "trap.h"
 #include "wm_compositor.h"
 #include "wm_drag.h"
@@ -147,7 +148,6 @@ void kernel_main(void) {
   const wm_window_t *hit_before;
   const wm_window_t *hit_after;
   const wm_window_t *active_window;
-  char line[128];
   wm_window_t main_window;
   wm_window_t back_window;
   wm_window_t front_window;
@@ -320,12 +320,5 @@ void kernel_main(void) {
     line_io_write("WM: keyboard focus routing failed\n");
   }
 
-  for (;;) {
-    line_io_write("shell> ");
-    if (line_io_readline(line, sizeof(line), true) > 0) {
-      line_io_write("echo: ");
-      line_io_write(line);
-      line_io_write("\n");
-    }
-  }
+  shell_run();
 }
