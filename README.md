@@ -34,6 +34,20 @@ The smoke test runs `scripts/run_qemu.sh`, boots the kernel on QEMU `virt`, and 
 BOOT: kernel entry
 ```
 
+## Framebuffer Graphics Test
+
+```sh
+make qemu-gfx-test
+```
+
+The graphics test boots the kernel and verifies framebuffer initialization plus deterministic
+pixel rendering output:
+
+```text
+GFX: framebuffer initialized
+GFX: deterministic marker 0x...
+```
+
 ## UART Line I/O Echo Test
 
 ```sh
