@@ -164,6 +164,24 @@ Expected output includes:
 WM: keyboard focus routing marker 0x...
 ```
 
+## Application Window API Demo Test
+
+```sh
+make qemu-app-window-test
+```
+
+Boots the kernel and validates the application-facing window API and callback dispatch path:
+
+- a demo task opens a window through `app_window_open`
+- synthetic mouse move/click input is emitted and dispatched through `app_window_dispatch_pending`
+- the demo app callback is invoked and a deterministic compositor marker is printed
+
+Expected output includes:
+
+```text
+APP: demo window callback marker 0x...
+```
+
 ## UART Line I/O Echo Test
 
 ```sh
