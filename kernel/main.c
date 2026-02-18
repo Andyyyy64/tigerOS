@@ -1,5 +1,6 @@
 #include <stdint.h>
 
+#include "clock.h"
 #include "console.h"
 #include "framebuffer.h"
 #include "line_io.h"
@@ -89,6 +90,7 @@ void kernel_main(void) {
   trap_init();
   line_io_write("console: line io ready\n");
   trap_test_trigger();
+  clock_init();
 
   if (framebuffer_init() != 0) {
     line_io_write("GFX: framebuffer init failed\n");

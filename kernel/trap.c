@@ -1,12 +1,14 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "clock.h"
 #include "console.h"
 #include "trap.h"
 
 enum {
   MCAUSE_INTERRUPT_BIT = 1ULL << 63,
   MCAUSE_CODE_MASK = MCAUSE_INTERRUPT_BIT - 1ULL,
+  MCAUSE_INTERRUPT_SUPERVISOR_TIMER = 5ULL,
   MCAUSE_EXCEPTION_BREAKPOINT = 3ULL,
 };
 
@@ -75,6 +77,16 @@ static bool trap_dispatch_exception(struct trap_frame *frame, uint64_t code) {
   }
 }
 
+static bool trap_dispatch_interrupt(uint64_t code) {
+  switch (code) {
+    case MCAUSE_INTERRUPT_SUPERVISOR_TIMER:
+      clock_handle_timer_interrupt();
+      return true;
+    default:
+      return false;
+  }
+}
+
 void trap_init(void) {
   uintptr_t stvec_base = (uintptr_t)&trap_vector;
   /* Force direct mode (MODE=0) to avoid accidental low-bit mode selection. */
@@ -101,8 +113,13 @@ void trap_test_trigger(void) {
 void trap_handle(struct trap_frame *frame) {
   uint64_t cause = frame->mcause;
   uint64_t code = trap_cause_code(cause);
+  bool is_interrupt = trap_is_interrupt(cause);
 
-  if (!trap_is_interrupt(cause) && trap_dispatch_exception(frame, code)) {
+  if (is_interrupt && trap_dispatch_interrupt(code)) {
+    return;
+  }
+
+  if (!is_interrupt && trap_dispatch_exception(frame, code)) {
     return;
   }
 
