@@ -3,6 +3,7 @@
 #include "console.h"
 #include "framebuffer.h"
 #include "line_io.h"
+#include "trap.h"
 #include "mm_init.h"
 
 static void console_put_hex32(uint32_t value) {
@@ -22,6 +23,8 @@ void kernel_main(void) {
   console_init();
   mm_init();
   line_io_write("BOOT: kernel entry\n");
+  trap_init();
+  trap_trigger_test();
   line_io_write("console: line io ready\n");
 
   if (framebuffer_init() != 0) {
