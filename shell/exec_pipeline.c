@@ -76,17 +76,22 @@ static int shell_write_redirection(const shell_parse_result_t *parse_result) {
   return 0;
 }
 
-static int shell_execute_single(shell_parse_result_t *parse_result, const char *raw_line) {
+static int shell_execute_single(shell_parse_result_t *parse_result) {
+  char fallback_text[SHELL_FALLBACK_TEXT_CAP];
+
+  shell_build_fallback_text(parse_result->left.argc, parse_result->left.argv, fallback_text,
+                            sizeof(fallback_text));
+
   if (parse_result->redir_mode == SHELL_REDIR_NONE) {
     shell_fd_set_stdout_console();
     shell_fd_set_stdin((const char *)0);
-    (void)shell_execute_or_fallback(parse_result->left.argc, parse_result->left.argv, raw_line);
+    (void)shell_execute_or_fallback(parse_result->left.argc, parse_result->left.argv, fallback_text);
     return 0;
   }
 
   shell_fd_set_stdout_capture();
   shell_fd_set_stdin((const char *)0);
-  (void)shell_execute_or_fallback(parse_result->left.argc, parse_result->left.argv, raw_line);
+  (void)shell_execute_or_fallback(parse_result->left.argc, parse_result->left.argv, fallback_text);
 
   return shell_write_redirection(parse_result);
 }
@@ -141,6 +146,7 @@ int shell_execute_line(char *line, const char *raw_line) {
   if (line == (char *)0 || raw_line == (const char *)0) {
     return -1;
   }
+  (void)raw_line;
 
   if (shell_parse_with_redirection(line, &parse_result) != 0) {
     shell_fd_set_stdout_console();
@@ -152,5 +158,5 @@ int shell_execute_line(char *line, const char *raw_line) {
     return shell_execute_pipe(&parse_result);
   }
 
-  return shell_execute_single(&parse_result, raw_line);
+  return shell_execute_single(&parse_result);
 }
