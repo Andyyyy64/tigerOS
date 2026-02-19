@@ -7,13 +7,6 @@
 #include "wm_compositor.h"
 #include "wm_terminal_window.h"
 
-typedef struct {
-  wm_terminal_window_t *windows[2];
-  uint32_t count;
-} multi_terminal_dispatch_state_t;
-
-static multi_terminal_dispatch_state_t g_dispatch_state;
-
 static int mt_str_eq(const char *a, const char *b) {
   size_t i = 0u;
 
@@ -106,29 +99,6 @@ static uint8_t scancode_for_char(char ch) {
   }
 }
 
-static wm_terminal_window_t *find_window_by_endpoint(uint32_t endpoint_id) {
-  uint32_t i;
-
-  for (i = 0u; i < g_dispatch_state.count; ++i) {
-    if (g_dispatch_state.windows[i] != (wm_terminal_window_t *)0 &&
-        wm_terminal_window_endpoint(g_dispatch_state.windows[i]) == endpoint_id) {
-      return g_dispatch_state.windows[i];
-    }
-  }
-
-  return (wm_terminal_window_t *)0;
-}
-
-static void multi_terminal_keyboard_sink(uint32_t endpoint_id, const keyboard_event_t *event) {
-  wm_terminal_window_t *window = find_window_by_endpoint(endpoint_id);
-
-  if (window == (wm_terminal_window_t *)0) {
-    return;
-  }
-
-  (void)wm_terminal_window_handle_key(window, event);
-}
-
 static int emit_scancode(uint8_t scancode) {
   if (scancode == 0u) {
     return -1;
@@ -170,13 +140,10 @@ int multi_terminal_test_run(uint32_t *out_marker) {
   }
   *out_marker = 0u;
 
-  g_dispatch_state.windows[0] = &left_terminal;
-  g_dispatch_state.windows[1] = &right_terminal;
-  g_dispatch_state.count = 2u;
-
   keyboard_reset();
   keyboard_dispatch_reset();
-  keyboard_dispatch_set_sink(multi_terminal_keyboard_sink);
+  wm_terminal_window_dispatch_reset();
+  keyboard_dispatch_set_sink(wm_terminal_window_dispatch_event);
   wm_compositor_reset(0x0011171fu);
 
   wm_terminal_window_init(&left_terminal, "term-left", 28u, 28u, 236u, 156u, 1u, 101u);
@@ -259,11 +226,9 @@ int multi_terminal_test_run(uint32_t *out_marker) {
 finish:
   keyboard_dispatch_set_sink((keyboard_dispatch_fn)0);
   keyboard_dispatch_reset();
+  wm_terminal_window_dispatch_reset();
   keyboard_reset();
   wm_compositor_reset(0x00161c26u);
-  g_dispatch_state.windows[0] = (wm_terminal_window_t *)0;
-  g_dispatch_state.windows[1] = (wm_terminal_window_t *)0;
-  g_dispatch_state.count = 0u;
 
   if (ok == 0) {
     return -1;

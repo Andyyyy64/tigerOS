@@ -164,6 +164,25 @@ Expected output includes:
 WM: keyboard focus routing marker 0x...
 ```
 
+## Window Manager Multi-Terminal Isolation Test
+
+```sh
+make qemu-multi-term-test
+```
+
+Boots the kernel with two terminal windows and validates concurrent terminal behavior with isolated
+session state:
+
+- keyboard events follow focused window routing through endpoint bindings
+- each terminal keeps its own line buffer/history while focus switches between windows
+- per-terminal cwd remains independent (`/tmp` in one terminal does not alter the other)
+
+Expected output includes:
+
+```text
+WM: multi terminal isolation marker 0x...
+```
+
 ## Application Window API Demo Test
 
 ```sh
