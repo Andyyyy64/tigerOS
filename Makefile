@@ -280,13 +280,18 @@ qemu-shell-pipe-test: $(KERNEL_ELF)
 			2>&1 || true \
 	)"; \
 	printf '%s\n' "$$OUTPUT"; \
-	printf '%s\n' "$$OUTPUT" | grep -F "BOOT: kernel entry" >/dev/null; \
-	printf '%s\n' "$$OUTPUT" | grep -F "echo: alpha" >/dev/null; \
-	printf '%s\n' "$$OUTPUT" | grep -F "echo: beta" >/dev/null; \
-	printf '%s\n' "$$OUTPUT" | grep -F "echo: piped text" >/dev/null; \
-	printf '%s\n' "$$OUTPUT" | grep -F "echo: sink pipe" >/dev/null; \
-	printf '%s\n' "$$OUTPUT" | grep -F "out.txt" >/dev/null; \
-	printf '%s\n' "$$OUTPUT" | grep -F "piped.txt" >/dev/null
+	CLEAN="$$(printf '%s\n' "$$OUTPUT" | tr -d '\000' | tr -d '\r')"; \
+	printf '%s\n' "$$CLEAN" | grep -aF "BOOT: kernel entry" >/dev/null; \
+	ALPHA_COUNT="$$(printf '%s\n' "$$CLEAN" | grep -aE -c '^echo: alpha$$' || true)"; \
+	BETA_COUNT="$$(printf '%s\n' "$$CLEAN" | grep -aE -c '^echo: beta$$' || true)"; \
+	PIPED_COUNT="$$(printf '%s\n' "$$CLEAN" | grep -aE -c '^echo: piped text$$' || true)"; \
+	SINK_COUNT="$$(printf '%s\n' "$$CLEAN" | grep -aE -c '^echo: sink pipe$$' || true)"; \
+	[ "$$ALPHA_COUNT" -eq 2 ]; \
+	[ "$$BETA_COUNT" -eq 1 ]; \
+	[ "$$PIPED_COUNT" -eq 1 ]; \
+	[ "$$SINK_COUNT" -eq 1 ]; \
+	printf '%s\n' "$$CLEAN" | grep -aE '^out.txt$$' >/dev/null; \
+	printf '%s\n' "$$CLEAN" | grep -aE '^piped.txt$$' >/dev/null
 
 qemu-fs-rw-test: $(FS_TEST_BIN) $(FS_MKFS_BIN) scripts/gen_fs_image.sh
 	./scripts/gen_fs_image.sh "$(FS_TEST_IMAGE)" "$(FS_MKFS_BIN)"
