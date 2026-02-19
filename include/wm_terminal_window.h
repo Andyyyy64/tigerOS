@@ -24,6 +24,8 @@ void wm_terminal_window_init(wm_terminal_window_t *terminal_window,
 int wm_terminal_window_attach(wm_terminal_window_t *terminal_window);
 int wm_terminal_window_handle_key(wm_terminal_window_t *terminal_window,
                                   const keyboard_event_t *event);
+void wm_terminal_window_dispatch_reset(void);
+void wm_terminal_window_dispatch_event(uint32_t endpoint_id, const keyboard_event_t *event);
 
 uint32_t wm_terminal_window_endpoint(const wm_terminal_window_t *terminal_window);
 uint32_t wm_terminal_window_owner_task(const wm_terminal_window_t *terminal_window);
