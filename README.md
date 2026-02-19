@@ -258,6 +258,32 @@ openTiger shell filesystem
 cd: no such directory
 ```
 
+## Shell Redirection and Single-Pipe Test
+
+```sh
+make qemu-shell-pipe-test
+```
+
+Boots the kernel, runs shell command sequences over UART, and validates basic
+redirection and single-pipe execution:
+
+- `echo alpha > /tmp/out.txt` truncates/creates the target file
+- `echo beta >> /tmp/out.txt` appends to the same file
+- `echo piped text | cat` passes captured left-command output to the right command
+- `echo sink pipe | cat > /tmp/piped.txt` combines a single pipe with output redirection
+- `ls /tmp` shows both `out.txt` and `piped.txt`
+
+Expected output includes:
+
+```text
+echo: alpha
+echo: beta
+echo: piped text
+echo: sink pipe
+out.txt
+piped.txt
+```
+
 ## Physical Page Allocator Unit Tests
 
 ```sh

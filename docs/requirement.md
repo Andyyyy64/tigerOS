@@ -49,7 +49,7 @@ We want to develop an OS on RISC-V with a workflow that can be continuously driv
 - [x] At least these commands work: `ls`, `cat`, `echo`, `pwd`, `cd`, `mkdir`, `help`.
 - [x] `ls` lists directory contents (files and subdirectories).
 - [x] `cat` reads and prints file contents.
-- [ ] Redirection (`>`, `>>`) and pipes are supported at a basic level (stretch goal).
+- [x] Redirection (`>`, `>>`) and single pipes are supported at a basic level.
 - [x] Multiple terminals can run concurrently, each with independent shell state.
 
 ### File System
@@ -152,6 +152,7 @@ Current bootstrap commands:
 - Run UART serial line echo test on QEMU: `make qemu-serial-echo-test`
 - Run shell basic builtins test on QEMU: `make qemu-shell-basic-test`
 - Run shell filesystem builtins test on QEMU: `make qemu-shell-fs-test`
+- Run shell redirection/single-pipe test on QEMU: `make qemu-shell-pipe-test`
 - Run the aggregated host-side core unit/integration suite: `make test`
 - Run physical page allocator unit tests: `make test-page-alloc`
 - Run scheduler/timer integration unit tests: `make test-sched-timer`
