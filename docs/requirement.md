@@ -50,7 +50,7 @@ We want to develop an OS on RISC-V with a workflow that can be continuously driv
 - [x] `ls` lists directory contents (files and subdirectories).
 - [x] `cat` reads and prints file contents.
 - [ ] Redirection (`>`, `>>`) and pipes are supported at a basic level (stretch goal).
-- [ ] Multiple terminals can run concurrently, each with independent shell state.
+- [x] Multiple terminals can run concurrently, each with independent shell state.
 
 ### File System
 
@@ -147,6 +147,7 @@ Current bootstrap commands:
 - Run overlap/focus/layer activation test on QEMU: `make qemu-wm-overlap-test`
 - Run mouse input/drag dispatch test on QEMU: `make qemu-mouse-test`
 - Run keyboard focus routing test on QEMU: `make qemu-keyboard-focus-test`
+- Run multi-terminal isolation test on QEMU: `make qemu-multi-term-test`
 - Run application window API demo test on QEMU: `make qemu-app-window-test`
 - Run UART serial line echo test on QEMU: `make qemu-serial-echo-test`
 - Run shell basic builtins test on QEMU: `make qemu-shell-basic-test`
