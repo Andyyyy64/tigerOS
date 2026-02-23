@@ -1,161 +1,73 @@
-# Goal
+Welcome to openTiger. What would you like to work on today?
 
-Build a medium-level RISC-V OS that boots on QEMU, provides a window manager with GUI operations, a terminal with Unix-like commands (`ls`, `cat`, etc.), and supports safe iterative development with automated verification. The scope aligns with intermediate OS development milestones: graphics, windows, multitasking, basic shell commands, and file system.
+I can help with code tasks, research, bug fixes, and feature development.
 
-## Background
+# rustyOS - RISC-V OS in Rust
 
-We want to develop an OS on RISC-V with a workflow that can be continuously driven by openTiger. A medium-level OS extends beyond a minimal kernel to include:
+## Technical Decisions
 
-- Window manager for GUI (window drawing, overlap, focus, drag)
-- Mouse and keyboard input with event handling
-- Unix-like command implementation (`ls`, `cat`, `echo`, `pwd`, `cd`, `mkdir`, etc.)
-- Basic file system (e.g., FAT) for file read/write
-- Multiple terminal support
-- Application layer that can create windows
+| Item | Choice |
+|------|--------|
+| Target | `riscv64gc-unknown-none-elf` (64-bit RISC-V) |
+| Rust toolchain | nightly (required for `#![no_std]` OS features) |
+| QEMU machine | `qemu-system-riscv64 -machine virt` |
+| Firmware | OpenSBI (QEMU built-in) |
+| Console | UART NS16550A (MMIO: `0x1000_0000`) |
+| Build | cargo + custom linker script + Makefile |
 
-## Constraints
+## Task Plan
 
-- Keep the existing language/toolchain choices already used in the repository.
-- Target RISC-V 64-bit virtual machine (`qemu-system-riscv64`, `virt` machine).
-- Keep boot and kernel behavior deterministic enough for automated verification in CI/local runs.
-- Avoid introducing heavy external runtime dependencies unless strictly needed.
-- Prioritize incremental, testable slices over large one-shot rewrites.
+### 1. Project Scaffolding [Risk: Low]
+- `cargo init --name rustyos`
+- `rust-toolchain.toml` with nightly + `riscv64gc-unknown-none-elf` target
+- `.cargo/config.toml` with target/linker settings
+- `linker.ld` - memory layout for QEMU virt machine (RAM starts at `0x8000_0000`)
 
-## Acceptance Criteria
+### 2. Minimal Boot Entry [Risk: Low]
+- `src/main.rs` - `#![no_std]`, `#![no_main]`, panic handler
+- `src/entry.asm` - RISC-V assembly entry point (`_start`), stack setup, jump to `kmain`
+- Boot into `kmain()` and halt
 
-### Kernel Baseline
+### 3. UART Driver & Console Output [Risk: Low]
+- `src/uart.rs` - NS16550A UART driver (MMIO read/write)
+- `print!` / `println!` macros
+- "rustyOS booted!" message on startup
 
-- [x] Kernel image builds successfully with the project's standard build command (`make`).
-- [x] Running the image on QEMU reaches kernel entry and prints a boot banner to serial console (`BOOT: kernel entry`).
-- [x] UART console input/output works for at least line-based command input.
-- [x] Trap/exception handler is wired and logs cause information on unexpected trap.
-- [x] Timer interrupt is enabled and at least one periodic tick is observable in logs.
-- [x] A simple physical page allocator (4KiB pages) is implemented with basic allocation/free tests.
-- [x] Basic kernel task execution is possible (at least two runnable tasks with round-robin scheduling).
+### 4. QEMU Run Environment [Risk: Low]
+- `Makefile` with `build`, `run`, `clean` targets
+- `qemu-system-riscv64` launch command with proper flags
+- Debug support via `-s -S` flags for GDB
 
-### Graphics and Window Manager
+### 5. Page Allocator [Risk: Medium]
+- `src/page.rs` - physical page allocator (bitmap-based)
+- Parse memory region from linker symbols (`_heap_start`, `_heap_end`)
+- `alloc_page()` / `dealloc_page()`
 
-- [x] Pixel-level graphics rendering (framebuffer or equivalent) is working.
-- [x] Window manager can create, draw, and overlap multiple windows (title bar, content area).
-- [x] Window focus and activation work; active window is brought to front.
-- [x] Mouse input is captured and events are delivered to the appropriate window/task.
-- [x] Keyboard input is routed to the focused window/terminal.
-- [x] Application-facing window API can open windows and dispatch pointer events to app callbacks.
-- [x] Overlay/layer management allows correct stacking of windows.
+### 6. Virtual Memory (Sv39) [Risk: Medium]
+- `src/mmu.rs` - RISC-V Sv39 page table setup
+- Identity mapping for kernel
+- Enable paging via `satp` CSR
 
-### Shell and Unix-like Commands
+### 7. Trap Handling [Risk: Medium]
+- `src/trap.rs` - trap vector, exception/interrupt dispatcher
+- `src/trap.asm` - context save/restore
+- Timer interrupt handling (CLINT)
 
-- [x] A terminal shell accepts line-based command input and shows output.
-- [x] At least these commands work: `ls`, `cat`, `echo`, `pwd`, `cd`, `mkdir`, `help`.
-- [x] `ls` lists directory contents (files and subdirectories).
-- [x] `cat` reads and prints file contents.
-- [x] Redirection (`>`, `>>`) and single pipes are supported at a basic level.
-- [x] Multiple terminals can run concurrently, each with independent shell state.
+### 8. Simple Shell [Risk: Low]
+- `src/shell.rs` - UART input reading, basic command parsing
+- Commands: `help`, `info`, `echo`, `clear`
+- Interactive prompt: `rustyOS> `
 
-### File System
+## Execution Order
 
-- [x] A basic file system (e.g., FAT12/FAT32 or minimal custom) is mounted.
-- [x] Files can be read and written through the kernel or shell.
-- [x] Path normalization/resolution helpers support `.`/`..`, repeated separators, and absolute/relative inputs.
-- [x] Directory listing and traversal work (`ls`, `cd`, `pwd`).
+```
+1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
+ scaffolding → boot → uart → qemu → alloc → mmu → traps → shell
+```
 
-### Verification
+Each step produces a runnable (or at least buildable) state. Steps 1-4 give you a booting kernel with console output. Steps 5-7 add core OS primitives. Step 8 adds interactivity.
 
-- [x] The project has at least one automated smoke test that boots in QEMU and checks expected boot log markers (`make test-smoke`/`make qemu-smoke` checks `BOOT: kernel entry` plus `TRAP_TEST: handled` or `TICK: periodic interrupt`).
-- [x] Core kernel changes are covered by unit/integration tests where feasible, and all required checks pass (`make test` runs `test-page-alloc`, `test-sched-timer`, `test-fs-dir`, and `test-shell`).
-
-## Scope
-
-### In Scope
-
-- Boot path and early initialization for RISC-V `virt` machine.
-- Kernel console over UART.
-- Trap/interrupt initialization and timer tick handling.
-- Basic physical memory page allocator.
-- Minimal scheduler foundation for kernel tasks.
-- Framebuffer or equivalent graphics driver for pixel output.
-- Window manager: window creation, drawing, overlap, focus, drag.
-- Mouse and PCI (or equivalent) driver for mouse input.
-- Keyboard input and event dispatch.
-- Basic file system implementation (FAT or minimal FS).
-- Terminal shell with Unix-like commands: `ls`, `cat`, `echo`, `pwd`, `cd`, `mkdir`, `help`, `meminfo`.
-- Multiple terminal support.
-- Application layer that can create windows and handle events.
-- Build/test scripts for repeatable local and CI verification.
-- Essential documentation updates for setup and run commands.
-
-### Out of Scope
-
-- Full POSIX compatibility.
-- Network stack.
-- Multi-core SMP scheduling.
-- Advanced security hardening (ASLR, privilege separation beyond basic).
-- Full C library or dynamic linking.
-- Hardware acceleration (GPU).
-
-### Allowed Paths
-
-- `arch/riscv/**`
-- `boot/**`
-- `kernel/**`
-- `drivers/**`
-- `fs/**`
-- `shell/**`
-- `apps/**`
-- `include/**`
-- `lib/**`
-- `tests/**`
-- `scripts/**`
-- `docs/**`
-- `README.md`
-- `Makefile`
-
-## Risk Assessment
-
-| Risk                                                                   | Impact | Mitigation                                                               |
-| ---------------------------------------------------------------------- | ------ | ------------------------------------------------------------------------ |
-| Boot sequence instability causes non-deterministic failures in QEMU   | high   | Keep early boot logging explicit and add smoke tests for boot markers    |
-| Trap/interrupt misconfiguration blocks progress in later kernel stages| high   | Implement trap setup with incremental verification and isolated tests    |
-| Scheduler bugs create hidden starvation or deadlock                    | medium | Start with minimal round-robin behavior and add deterministic task tests  |
-| Memory allocator corruption causes cascading failures                  | high   | Add allocator invariants and targeted allocation/free test cases         |
-| Window/event handling becomes too complex for incremental delivery     | medium | Implement in phases: pixel -> single window -> multi-window -> shell      |
-| File system bugs corrupt disk image                                   | high   | Use deterministic disk images in tests; add fsck or consistency checks    |
-| Scope expansion slows autonomous iteration                             | medium | Use milestone-first delivery; defer advanced features to later phases    |
-
-## Notes
-
-Use a milestone-first strategy:
-
-1. Boot + console + trap/timer + allocator + scheduler (kernel baseline)
-2. Graphics: pixel output, framebuffer driver
-3. Mouse and keyboard input, event queue (FIFO)
-4. Window manager: single window, then multiple windows, overlap, focus, drag
-5. File system: mount, read, write, directory operations
-6. Shell and commands: `help`, `echo`, `meminfo`, then `ls`, `cat`, `pwd`, `cd`, `mkdir`
-7. Multiple terminals
-8. Applications that create windows
-9. Smoke tests and docs
-
-Current bootstrap commands:
-
-- Build kernel artifacts: `make`
-- Run boot smoke test on QEMU: `make qemu-smoke`
-- Run trap handler test on QEMU: `make qemu-trap-test`
-- Run round-robin scheduler test on QEMU: `make qemu-sched-test`
-- Run framebuffer graphics test on QEMU: `make qemu-gfx-test`
-- Run single-window composition test on QEMU: `make qemu-wm-single-test`
-- Run overlap/focus/layer activation test on QEMU: `make qemu-wm-overlap-test`
-- Run mouse input/drag dispatch test on QEMU: `make qemu-mouse-test`
-- Run keyboard focus routing test on QEMU: `make qemu-keyboard-focus-test`
-- Run multi-terminal isolation test on QEMU: `make qemu-multi-term-test`
-- Run application window API demo test on QEMU: `make qemu-app-window-test`
-- Run UART serial line echo test on QEMU: `make qemu-serial-echo-test`
-- Run shell basic builtins test on QEMU: `make qemu-shell-basic-test`
-- Run shell filesystem builtins test on QEMU: `make qemu-shell-fs-test`
-- Run shell redirection/single-pipe test on QEMU: `make qemu-shell-pipe-test`
-- Run the aggregated host-side core unit/integration suite: `make test`
-- Run physical page allocator unit tests: `make test-page-alloc`
-- Run scheduler/timer integration unit tests: `make test-sched-timer`
-- Run shell command unit/integration tests: `make test-shell`
-- Run OTFS mount/read/write regression test: `make qemu-fs-rw-test`
-- Run directory traversal/path resolution unit tests: `make test-fs-dir`
+## Prerequisites (Install)
+```
+rustup, qemu-system-riscv64, riscv64-unknown-elf-gcc (for linker)
+```
