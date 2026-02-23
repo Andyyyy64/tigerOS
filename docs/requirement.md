@@ -2,72 +2,73 @@ Welcome to openTiger. What would you like to work on today?
 
 I can help with code tasks, research, bug fixes, and feature development.
 
-# rustyOS - RISC-V OS in Rust
+RISC-V + Rust + QEMU でミニマルOSを構築するプランです。
 
-## Technical Decisions
+## 技術選定
 
-| Item | Choice |
-|------|--------|
-| Target | `riscv64gc-unknown-none-elf` (64-bit RISC-V) |
-| Rust toolchain | nightly (required for `#![no_std]` OS features) |
-| QEMU machine | `qemu-system-riscv64 -machine virt` |
-| Firmware | OpenSBI (QEMU built-in) |
-| Console | UART NS16550A (MMIO: `0x1000_0000`) |
-| Build | cargo + custom linker script + Makefile |
+| 項目 | 選定 |
+|------|------|
+| ターゲット | `riscv64gc-unknown-none-elf` (64-bit) |
+| Rust toolchain | nightly（`#![no_std]`, inline asm, カスタムリンカスクリプト必須） |
+| QEMU | `qemu-system-riscv64` / `virt` マシン |
+| ファームウェア | OpenSBI（QEMU同梱） |
+| コンソールI/O | UART NS16550A（QEMU virt: `0x1000_0000`） |
+| ビルド | `cargo` + カスタムリンカスクリプト |
 
-## Task Plan
+---
 
-### 1. Project Scaffolding [Risk: Low]
-- `cargo init --name rustyos`
-- `rust-toolchain.toml` with nightly + `riscv64gc-unknown-none-elf` target
-- `.cargo/config.toml` with target/linker settings
-- `linker.ld` - memory layout for QEMU virt machine (RAM starts at `0x8000_0000`)
+## タスクプラン
 
-### 2. Minimal Boot Entry [Risk: Low]
-- `src/main.rs` - `#![no_std]`, `#![no_main]`, panic handler
-- `src/entry.asm` - RISC-V assembly entry point (`_start`), stack setup, jump to `kmain`
-- Boot into `kmain()` and halt
+### 1. 開発環境セットアップ
+Rust nightly, `riscv64gc-unknown-none-elf` ターゲット, QEMU, binutils をインストール  
+**リスク: 低** | 順序: 最初
 
-### 3. UART Driver & Console Output [Risk: Low]
-- `src/uart.rs` - NS16550A UART driver (MMIO read/write)
-- `print!` / `println!` macros
-- "rustyOS booted!" message on startup
+### 2. プロジェクト骨格の作成
+`#![no_std]` / `#![no_main]` のRustプロジェクト、`.cargo/config.toml` でターゲット・リンカ設定、`linker.ld`（メモリレイアウト: RAM `0x8020_0000`〜）  
+**リスク: 低** | 順序: 2番目
 
-### 4. QEMU Run Environment [Risk: Low]
-- `Makefile` with `build`, `run`, `clean` targets
-- `qemu-system-riscv64` launch command with proper flags
-- Debug support via `-s -S` flags for GDB
+### 3. ブートコード（アセンブリエントリポイント）
+`_start` でスタックポインタ設定 → Rustの `kmain` にジャンプ。BSS初期化、hartid == 0 以外を待機ループへ  
+**リスク: 中** | 順序: 3番目
 
-### 5. Page Allocator [Risk: Medium]
-- `src/page.rs` - physical page allocator (bitmap-based)
-- Parse memory region from linker symbols (`_heap_start`, `_heap_end`)
-- `alloc_page()` / `dealloc_page()`
+### 4. UART ドライバ実装
+NS16550A レジスタ直接操作で `putchar` / `print!` マクロ実装。デバッグ出力の基盤  
+**リスク: 低** | 順序: 4番目
 
-### 6. Virtual Memory (Sv39) [Risk: Medium]
-- `src/mmu.rs` - RISC-V Sv39 page table setup
-- Identity mapping for kernel
-- Enable paging via `satp` CSR
+### 5. ページテーブル・メモリ管理
+Sv39（3レベルページテーブル）のセットアップ。カーネル空間のアイデンティティマッピング、簡易フレームアロケータ  
+**リスク: 高** | 順序: 5番目
 
-### 7. Trap Handling [Risk: Medium]
-- `src/trap.rs` - trap vector, exception/interrupt dispatcher
-- `src/trap.asm` - context save/restore
-- Timer interrupt handling (CLINT)
+### 6. トラップ・割り込みハンドラ
+`stvec` 設定、トラップベクタ実装。タイマー割り込み（CLINT）、外部割り込み（PLIC）、例外ハンドリング  
+**リスク: 高** | 順序: 6番目
 
-### 8. Simple Shell [Risk: Low]
-- `src/shell.rs` - UART input reading, basic command parsing
-- Commands: `help`, `info`, `echo`, `clear`
-- Interactive prompt: `rustyOS> `
+### 7. プロセス管理（基礎）
+コンテキスト構造体、コンテキストスイッチ（レジスタ保存・復元）、簡易ラウンドロビンスケジューラ  
+**リスク: 高** | 順序: 7番目
 
-## Execution Order
+### 8. システムコールインターフェース
+`ecall` による S-mode ↔ U-mode のシステムコール。`write`, `exit` を最低限実装  
+**リスク: 中** | 順序: 8番目
+
+### 9. Makefile / 実行スクリプト
+`cargo build` → ELFバイナリ生成 → `qemu-system-riscv64 -machine virt -kernel ...` でワンコマンド起動  
+**リスク: 低** | 順序: 並行可
+
+---
+
+## 実行順序
 
 ```
-1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
- scaffolding → boot → uart → qemu → alloc → mmu → traps → shell
+[1] 環境セットアップ
+ ↓
+[2] プロジェクト骨格
+ ↓
+[3] ブートコード → [4] UART → "Hello, RISC-V OS!" 出力確認
+ ↓
+[5] メモリ管理 → [6] トラップハンドラ
+ ↓
+[7] プロセス管理 → [8] システムコール
 ```
 
-Each step produces a runnable (or at least buildable) state. Steps 1-4 give you a booting kernel with console output. Steps 5-7 add core OS primitives. Step 8 adds interactivity.
-
-## Prerequisites (Install)
-```
-rustup, qemu-system-riscv64, riscv64-unknown-elf-gcc (for linker)
-```
+ステップ4完了時点で QEMU 上に文字が表示され、動作確認できる最初のマイルストーンとなります。
